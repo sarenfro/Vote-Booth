@@ -4,6 +4,7 @@ import { customFetch } from "@workspace/api-client-react";
 interface MeResponse {
   memberId: number;
   isAdmin: boolean;
+  isEc: boolean;
 }
 
 export function useMe(memberId: string) {

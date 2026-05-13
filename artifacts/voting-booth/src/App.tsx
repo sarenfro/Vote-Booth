@@ -7,6 +7,8 @@ import { Home } from "@/pages/home";
 import { Layout } from "@/components/layout";
 import { Admin } from "@/pages/admin";
 import { Ballot } from "@/pages/ballot";
+import { EcDashboard } from "@/pages/ec-dashboard";
+import { Results } from "@/pages/results";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +17,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/admin" component={Admin} />
+      <Route path="/ec" component={EcDashboard} />
+      <Route path="/results" component={Results} />
       <Route path="/:id" component={Ballot} />
       <Route component={NotFound} />
     </Switch>

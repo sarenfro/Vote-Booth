@@ -7,6 +7,7 @@ export const members = pgTable("members", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   isAdmin: boolean("is_admin").notNull().default(false),
+  isEc: boolean("is_ec").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

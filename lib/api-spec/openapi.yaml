@@ -12,6 +12,10 @@ tags:
     description: Health operations
   - name: elections
     description: Voting booth operations
+  - name: storage
+    description: Object storage upload and serving endpoints.
+  - name: documents
+    description: Ballot document management.
 paths:
   /healthz:
     get:
@@ -227,6 +231,116 @@ paths:
           description: Forbidden (not an admin)
         "409":
           description: Election is not in open status
+
+  /storage/uploads/request-url:
+    post:
+      tags: [storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadUrlBody'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestUploadUrlResponse'
+        '400':
+          description: Missing or invalid required fields.
+        '500':
+          description: Failed to generate upload URL.
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [storage]
+      operationId: getStorageObject
+      summary: Serve an uploaded object entity
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Object not found.
+
+  /documents:
+    post:
+      tags: [documents]
+      operationId: createDocument
+      summary: Attach an uploaded document to an election (EC/admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentBody'
+      responses:
+        '201':
+          description: Document record created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BallotDocument'
+        '400':
+          description: Invalid fields.
+        '403':
+          description: EC or admin access required.
+        '404':
+          description: Election not found.
+
+  /elections/{id}/documents:
+    get:
+      tags: [documents]
+      operationId: listDocuments
+      summary: List documents attached to an election
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of documents.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BallotDocument'
+
+  /documents/{id}:
+    delete:
+      tags: [documents]
+      operationId: deleteDocument
+      summary: Delete a document (EC/admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted.
+        '403':
+          description: EC or admin access required.
+        '404':
+          description: Document not found.
 
 components:
   schemas:
@@ -473,3 +587,61 @@ components:
           type: boolean
       required:
         - hasVoted
+
+    RequestUploadUrlBody:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+
+    RequestUploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/RequestUploadUrlBody'
+
+    CreateDocumentBody:
+      type: object
+      required: [electionId, name, objectPath]
+      properties:
+        electionId:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+        objectPath:
+          type: string
+          minLength: 1
+
+    BallotDocument:
+      type: object
+      required: [id, electionId, name, objectPath, createdAt]
+      properties:
+        id:
+          type: integer
+        electionId:
+          type: integer
+        name:
+          type: string
+        objectPath:
+          type: string
+        uploadedBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time

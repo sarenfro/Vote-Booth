@@ -1,22 +1,20 @@
-import { Link, useSearch, useRoute } from "wouter";
+import { Link, useRoute } from "wouter";
 import { useMemberId } from "@/hooks/use-member-id";
 import { useMe } from "@/hooks/use-me";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const NAV_ITEMS = [
-  { label: "Voting Booth", href: "/", active: true },
-  { label: "Membership Dues", href: "#", active: false },
-  { label: "Student Directory", href: "#", active: false },
-];
-
 export function Layout({ children }: { children: React.ReactNode }) {
   const [memberId, setMemberId] = useMemberId();
   const { data: me } = useMe(memberId);
   const isAdmin = me?.isAdmin ?? false;
+  const isEc = me?.isEc ?? false;
 
   const [onAdmin] = useRoute("/admin");
-  const activeLabel = onAdmin ? "Admin Panel" : "Voting Booth";
+  const [onEc] = useRoute("/ec");
+  const [onResults] = useRoute("/results");
+
+  const activeLabel = onAdmin ? "Admin Panel" : onEc ? "EC Dashboard" : onResults ? "Results" : "Voting Booth";
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
@@ -51,26 +49,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="max-w-5xl mx-auto px-6 flex items-center gap-1 pb-0" aria-label="Portal navigation">
-          {NAV_ITEMS.map(({ label, href, active }) => {
-            const isCurrent = label === activeLabel || (active && label === "Voting Booth" && !onAdmin);
-            return (
-              <Link
-                key={label}
-                href={href}
-                aria-disabled={!active}
-                onClick={active ? undefined : (e) => e.preventDefault()}
-                className={`relative px-4 py-2.5 text-sm font-medium transition-colors select-none
-                  ${isCurrent
-                    ? "text-white border-b-2 border-accent"
-                    : active
-                    ? "text-primary-foreground/70 hover:text-white border-b-2 border-transparent"
-                    : "text-primary-foreground/40 border-b-2 border-transparent cursor-not-allowed"
-                  }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+          <NavTab label="Voting Booth" href="/" active={activeLabel === "Voting Booth"} enabled />
+          {isEc && <NavTab label="EC Dashboard" href="/ec" active={activeLabel === "EC Dashboard"} enabled />}
+          <NavTab label="Results" href="/results" active={activeLabel === "Results"} enabled />
         </nav>
       </header>
 
@@ -80,5 +61,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+  );
+}
+
+function NavTab({ label, href, active, enabled }: { label: string; href: string; active: boolean; enabled: boolean }) {
+  return (
+    <Link
+      href={href}
+      aria-disabled={!enabled}
+      onClick={enabled ? undefined : (e) => e.preventDefault()}
+      className={`relative px-4 py-2.5 text-sm font-medium transition-colors select-none
+        ${active
+          ? "text-white border-b-2 border-accent"
+          : enabled
+          ? "text-primary-foreground/70 hover:text-white border-b-2 border-transparent"
+          : "text-primary-foreground/40 border-b-2 border-transparent cursor-not-allowed"
+        }`}
+    >
+      {label}
+    </Link>
   );
 }

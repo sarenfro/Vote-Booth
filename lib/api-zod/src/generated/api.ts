@@ -276,3 +276,66 @@ export const CloseElectionResponse = zod.object({
   createdAt: zod.coerce.date(),
   closedAt: zod.coerce.date().nullish(),
 });
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1),
+  size: zod.number().min(1),
+  contentType: zod.string().min(1),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url(),
+  objectPath: zod.string(),
+  metadata: zod
+    .object({
+      name: zod.string().min(1),
+      size: zod.number().min(1),
+      contentType: zod.string().min(1),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Serve an uploaded object entity
+ */
+export const GetStorageObjectParams = zod.object({
+  objectPath: zod.coerce.string(),
+});
+
+/**
+ * @summary Attach an uploaded document to an election (EC/admin only)
+ */
+
+export const CreateDocumentBody = zod.object({
+  electionId: zod.number(),
+  name: zod.string().min(1),
+  objectPath: zod.string().min(1),
+});
+
+/**
+ * @summary List documents attached to an election
+ */
+export const ListDocumentsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListDocumentsResponseItem = zod.object({
+  id: zod.number(),
+  electionId: zod.number(),
+  name: zod.string(),
+  objectPath: zod.string(),
+  uploadedBy: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem);
+
+/**
+ * @summary Delete a document (EC/admin only)
+ */
+export const DeleteDocumentParams = zod.object({
+  id: zod.coerce.number(),
+});

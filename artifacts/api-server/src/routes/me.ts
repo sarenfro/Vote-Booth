@@ -21,7 +21,7 @@ router.get("/me", async (req: Request, res: Response) => {
     return;
   }
   const [member] = await db
-    .select({ id: members.id, isAdmin: members.isAdmin })
+    .select({ id: members.id, isAdmin: members.isAdmin, isEc: members.isEc })
     .from(members)
     .where(eq(members.id, memberId))
     .limit(1);
@@ -29,7 +29,7 @@ router.get("/me", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Member not found" });
     return;
   }
-  res.json({ memberId: member.id, isAdmin: member.isAdmin ?? false });
+  res.json({ memberId: member.id, isAdmin: member.isAdmin ?? false, isEc: member.isEc ?? false });
 });
 
 export default router;

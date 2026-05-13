@@ -3,3 +3,4 @@ export * from "./elections";
 export * from "./election_options";
 export * from "./voter_log";
 export * from "./ballots";
+export * from "./ballot_documents";

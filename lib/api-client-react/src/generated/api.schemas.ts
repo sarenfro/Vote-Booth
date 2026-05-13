@@ -160,3 +160,35 @@ export interface TallyResult {
 export interface HasVotedResponse {
   hasVoted: boolean;
 }
+
+export interface RequestUploadUrlBody {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface RequestUploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata?: RequestUploadUrlBody;
+}
+
+export interface CreateDocumentBody {
+  electionId: number;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  objectPath: string;
+}
+
+export interface BallotDocument {
+  id: number;
+  electionId: number;
+  name: string;
+  objectPath: string;
+  uploadedBy?: number | null;
+  createdAt: string;
+}
