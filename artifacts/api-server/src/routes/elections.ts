@@ -295,8 +295,8 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Election not found" });
     return;
   }
-  if (existing.status !== "draft") {
-    res.status(409).json({ error: "Only draft elections can be updated" });
+  if (existing.status === "closed") {
+    res.status(409).json({ error: "Closed elections cannot be updated" });
     return;
   }
 
@@ -344,7 +344,7 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
     .where(eq(elections.id, id))
     .returning();
 
-  if (Array.isArray(optionLabels)) {
+  if (Array.isArray(optionLabels) && existing.status === "draft") {
     await db.delete(electionOptions).where(eq(electionOptions.electionId, id));
     if (optionLabels.length > 0) {
       await db.insert(electionOptions).values(

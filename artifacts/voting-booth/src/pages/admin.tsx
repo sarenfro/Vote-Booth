@@ -61,6 +61,13 @@ export function Admin() {
   const [maxSelections, setMaxSelections] = useState("");
   const [formError, setFormError] = useState("");
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editQuorum, setEditQuorum] = useState("");
+  const [editEligible, setEditEligible] = useState("");
+  const [editError, setEditError] = useState("");
+
   function resetForm() {
     setTitle("");
     setDescription("");
@@ -135,6 +142,44 @@ export function Admin() {
     closeElection.mutate(
       { id },
       { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) }
+    );
+  }
+
+  function startEdit(election: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null }) {
+    setEditingId(election.id);
+    setEditTitle(election.title);
+    setEditDescription(election.description ?? "");
+    setEditQuorum(election.quorumCount != null ? String(election.quorumCount) : "");
+    setEditEligible(election.eligibleVoterCount != null ? String(election.eligibleVoterCount) : "");
+    setEditError("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError("");
+  }
+
+  function handleUpdate(id: number) {
+    if (!editTitle.trim()) { setEditError("Title is required."); return; }
+    updateElection.mutate(
+      {
+        id,
+        data: {
+          title: editTitle.trim(),
+          description: editDescription.trim() || null,
+          quorumCount: editQuorum ? parseInt(editQuorum, 10) : null,
+          eligibleVoterCount: editEligible ? parseInt(editEligible, 10) : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() });
+          setEditingId(null);
+        },
+        onError: (err: unknown) => {
+          setEditError((err as { data?: { error?: string } })?.data?.error ?? "Failed to save changes.");
+        },
+      }
     );
   }
 
@@ -336,10 +381,46 @@ export function Admin() {
                           <StatusBadge status={election.status} />
                         </div>
                       </CardHeader>
+
+                      {editingId === election.id && (
+                        <CardContent className="pt-0 pb-3 space-y-3 border-t border-border/50">
+                          <div className="space-y-1 pt-3">
+                            <Label>Title</Label>
+                            <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Description (optional)</Label>
+                            <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={2} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label>Quorum count</Label>
+                              <Input type="number" min={1} value={editQuorum} onChange={e => setEditQuorum(e.target.value)} placeholder="e.g. 30" />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Eligible voters</Label>
+                              <Input type="number" min={1} value={editEligible} onChange={e => setEditEligible(e.target.value)} placeholder="e.g. 58" />
+                            </div>
+                          </div>
+                          {editError && <p className="text-sm text-destructive">{editError}</p>}
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleUpdate(election.id)} disabled={updateElection.isPending}>
+                              {updateElection.isPending ? "Saving…" : "Save"}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                          </div>
+                        </CardContent>
+                      )}
+
                       <CardFooter className="pt-2 pb-3 gap-2">
                         <Link href={`/${election.id}${isAdmin ? "?admin=true" : ""}`}>
                           <Button variant="outline" size="sm">View</Button>
                         </Link>
+                        {election.status !== "closed" && editingId !== election.id && (
+                          <Button variant="outline" size="sm" onClick={() => startEdit(election)}>
+                            Edit
+                          </Button>
+                        )}
                         {election.status === "draft" && (
                           <Button
                             data-testid={`button-open-election-${election.id}`}
