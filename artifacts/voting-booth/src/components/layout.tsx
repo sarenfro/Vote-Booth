@@ -20,7 +20,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const activeLabel = onAdmin ? "Admin Panel" : onEc ? "EC Dashboard" : onResults ? "Results" : "Voting Booth";
 
   function roleLabel(m: { isAdmin: boolean; isEc: boolean }) {
-    if (m.isAdmin && m.isEc) return "Admin + EC";
     if (m.isAdmin) return "Admin";
     if (m.isEc) return "EC";
     return "Member";
