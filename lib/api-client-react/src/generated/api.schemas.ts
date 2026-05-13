@@ -8,3 +8,160 @@
 export interface HealthStatus {
   status: string;
 }
+
+export type ElectionVoteType =
+  (typeof ElectionVoteType)[keyof typeof ElectionVoteType];
+
+export const ElectionVoteType = {
+  yes_no: "yes_no",
+  plurality: "plurality",
+  ranked_choice: "ranked_choice",
+  multi_select: "multi_select",
+} as const;
+
+export type ElectionThresholdType =
+  | (typeof ElectionThresholdType)[keyof typeof ElectionThresholdType]
+  | null;
+
+export const ElectionThresholdType = {
+  simple_majority: "simple_majority",
+  two_thirds: "two_thirds",
+  three_quarters: "three_quarters",
+  custom: "custom",
+} as const;
+
+export type ElectionStatus =
+  (typeof ElectionStatus)[keyof typeof ElectionStatus];
+
+export const ElectionStatus = {
+  draft: "draft",
+  open: "open",
+  closed: "closed",
+} as const;
+
+export interface Election {
+  id: number;
+  title: string;
+  description?: string | null;
+  voteType: ElectionVoteType;
+  thresholdType?: ElectionThresholdType;
+  thresholdPercent?: number | null;
+  quorumCount?: number | null;
+  eligibleVoterCount?: number | null;
+  showLiveProgress: boolean;
+  maxSelections?: number | null;
+  status: ElectionStatus;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  createdBy?: number | null;
+  createdAt: string;
+  closedAt?: string | null;
+}
+
+export interface ElectionOption {
+  id: number;
+  electionId: number;
+  label: string;
+  orderIndex: number;
+}
+
+export type ElectionWithOptions = Election & {
+  options: ElectionOption[];
+};
+
+export type CreateElectionBodyVoteType =
+  (typeof CreateElectionBodyVoteType)[keyof typeof CreateElectionBodyVoteType];
+
+export const CreateElectionBodyVoteType = {
+  yes_no: "yes_no",
+  plurality: "plurality",
+  ranked_choice: "ranked_choice",
+  multi_select: "multi_select",
+} as const;
+
+export type CreateElectionBodyThresholdType =
+  | (typeof CreateElectionBodyThresholdType)[keyof typeof CreateElectionBodyThresholdType]
+  | null;
+
+export const CreateElectionBodyThresholdType = {
+  simple_majority: "simple_majority",
+  two_thirds: "two_thirds",
+  three_quarters: "three_quarters",
+  custom: "custom",
+} as const;
+
+export interface CreateElectionBody {
+  title: string;
+  description?: string | null;
+  voteType: CreateElectionBodyVoteType;
+  thresholdType?: CreateElectionBodyThresholdType;
+  thresholdPercent?: number | null;
+  quorumCount?: number | null;
+  eligibleVoterCount?: number | null;
+  showLiveProgress: boolean;
+  maxSelections?: number | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  createdBy?: number | null;
+  /** Option labels in display order */
+  options: string[];
+}
+
+export type UpdateElectionBodyThresholdType =
+  | (typeof UpdateElectionBodyThresholdType)[keyof typeof UpdateElectionBodyThresholdType]
+  | null;
+
+export const UpdateElectionBodyThresholdType = {
+  simple_majority: "simple_majority",
+  two_thirds: "two_thirds",
+  three_quarters: "three_quarters",
+  custom: "custom",
+} as const;
+
+export interface UpdateElectionBody {
+  title?: string;
+  description?: string | null;
+  thresholdType?: UpdateElectionBodyThresholdType;
+  thresholdPercent?: number | null;
+  quorumCount?: number | null;
+  eligibleVoterCount?: number | null;
+  showLiveProgress?: boolean;
+  maxSelections?: number | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  options?: string[] | null;
+}
+
+/**
+ * Vote payload. Structure depends on vote_type: yes_no: {"choice": "yes"|"no"}, plurality: {"option_id": number}, ranked_choice: {"rankings": [{"option_id": number, "rank": number}]}, multi_select: {"option_ids": number[]}
+
+ */
+export type CastVoteBodyPayload = { [key: string]: unknown };
+
+export interface CastVoteBody {
+  memberId: number;
+  /** Vote payload. Structure depends on vote_type: yes_no: {"choice": "yes"|"no"}, plurality: {"option_id": number}, ranked_choice: {"rankings": [{"option_id": number, "rank": number}]}, multi_select: {"option_ids": number[]}
+   */
+  payload: CastVoteBodyPayload;
+}
+
+export interface TallyOption {
+  optionId?: number | null;
+  optionLabel: string;
+  voteCount: number;
+}
+
+export interface TallyResult {
+  electionId: number;
+  totalBallots: number;
+  quorumMet?: boolean | null;
+  options: TallyOption[];
+}
+
+export interface HasVotedResponse {
+  hasVoted: boolean;
+}
+
+export type HasVotedParams = {
+  memberId: number;
+};

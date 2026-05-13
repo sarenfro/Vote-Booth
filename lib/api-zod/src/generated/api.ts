@@ -14,3 +14,270 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns visible elections (open and recently closed)
+ * @summary List elections
+ */
+export const ListElectionsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  voteType: zod.enum(["yes_no", "plurality", "ranked_choice", "multi_select"]),
+  thresholdType: zod
+    .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+    .nullish(),
+  thresholdPercent: zod.number().nullish(),
+  quorumCount: zod.number().nullish(),
+  eligibleVoterCount: zod.number().nullish(),
+  showLiveProgress: zod.boolean(),
+  maxSelections: zod.number().nullish(),
+  status: zod.enum(["draft", "open", "closed"]),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  closedAt: zod.coerce.date().nullish(),
+});
+export const ListElectionsResponse = zod.array(ListElectionsResponseItem);
+
+/**
+ * Creates a new election in draft status
+ * @summary Create election (admin)
+ */
+export const CreateElectionBody = zod.object({
+  title: zod.string(),
+  description: zod.string().nullish(),
+  voteType: zod.enum(["yes_no", "plurality", "ranked_choice", "multi_select"]),
+  thresholdType: zod
+    .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+    .nullish(),
+  thresholdPercent: zod.number().nullish(),
+  quorumCount: zod.number().nullish(),
+  eligibleVoterCount: zod.number().nullish(),
+  showLiveProgress: zod.boolean(),
+  maxSelections: zod.number().nullish(),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number().nullish(),
+  options: zod.array(zod.string()).describe("Option labels in display order"),
+});
+
+/**
+ * @summary Get election with options
+ */
+export const GetElectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetElectionResponse = zod
+  .object({
+    id: zod.number(),
+    title: zod.string(),
+    description: zod.string().nullish(),
+    voteType: zod.enum([
+      "yes_no",
+      "plurality",
+      "ranked_choice",
+      "multi_select",
+    ]),
+    thresholdType: zod
+      .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+      .nullish(),
+    thresholdPercent: zod.number().nullish(),
+    quorumCount: zod.number().nullish(),
+    eligibleVoterCount: zod.number().nullish(),
+    showLiveProgress: zod.boolean(),
+    maxSelections: zod.number().nullish(),
+    status: zod.enum(["draft", "open", "closed"]),
+    startsAt: zod.coerce.date().nullish(),
+    endsAt: zod.coerce.date().nullish(),
+    createdBy: zod.number().nullish(),
+    createdAt: zod.coerce.date(),
+    closedAt: zod.coerce.date().nullish(),
+  })
+  .and(
+    zod.object({
+      options: zod.array(
+        zod.object({
+          id: zod.number(),
+          electionId: zod.number(),
+          label: zod.string(),
+          orderIndex: zod.number(),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * @summary Update election (admin, draft only)
+ */
+export const UpdateElectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateElectionBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  thresholdType: zod
+    .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+    .nullish(),
+  thresholdPercent: zod.number().nullish(),
+  quorumCount: zod.number().nullish(),
+  eligibleVoterCount: zod.number().nullish(),
+  showLiveProgress: zod.boolean().optional(),
+  maxSelections: zod.number().nullish(),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  options: zod.array(zod.string()).nullish(),
+});
+
+export const UpdateElectionResponse = zod
+  .object({
+    id: zod.number(),
+    title: zod.string(),
+    description: zod.string().nullish(),
+    voteType: zod.enum([
+      "yes_no",
+      "plurality",
+      "ranked_choice",
+      "multi_select",
+    ]),
+    thresholdType: zod
+      .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+      .nullish(),
+    thresholdPercent: zod.number().nullish(),
+    quorumCount: zod.number().nullish(),
+    eligibleVoterCount: zod.number().nullish(),
+    showLiveProgress: zod.boolean(),
+    maxSelections: zod.number().nullish(),
+    status: zod.enum(["draft", "open", "closed"]),
+    startsAt: zod.coerce.date().nullish(),
+    endsAt: zod.coerce.date().nullish(),
+    createdBy: zod.number().nullish(),
+    createdAt: zod.coerce.date(),
+    closedAt: zod.coerce.date().nullish(),
+  })
+  .and(
+    zod.object({
+      options: zod.array(
+        zod.object({
+          id: zod.number(),
+          electionId: zod.number(),
+          label: zod.string(),
+          orderIndex: zod.number(),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * Atomically records the voter log entry and anonymous ballot via cast_vote()
+ * @summary Cast a vote
+ */
+export const CastVoteParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CastVoteBody = zod.object({
+  memberId: zod.number(),
+  payload: zod
+    .record(zod.string(), zod.unknown())
+    .describe(
+      'Vote payload. Structure depends on vote_type: yes_no: {\"choice\": \"yes\"|\"no\"}, plurality: {\"option_id\": number}, ranked_choice: {\"rankings\": [{\"option_id\": number, \"rank\": number}]}, multi_select: {\"option_ids\": number[]}\n',
+    ),
+});
+
+/**
+ * Returns aggregate vote counts via election_tally(). Never exposes individual ballots.
+ * @summary Get vote tally
+ */
+export const GetElectionTallyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetElectionTallyResponse = zod.object({
+  electionId: zod.number(),
+  totalBallots: zod.number(),
+  quorumMet: zod.boolean().nullish(),
+  options: zod.array(
+    zod.object({
+      optionId: zod.number().nullish(),
+      optionLabel: zod.string(),
+      voteCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Check if a member has voted
+ */
+export const HasVotedParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const HasVotedQueryParams = zod.object({
+  memberId: zod.coerce.number(),
+});
+
+export const HasVotedResponse = zod.object({
+  hasVoted: zod.boolean(),
+});
+
+/**
+ * Transitions election from draft to open
+ * @summary Open election (admin)
+ */
+export const OpenElectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const OpenElectionResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  voteType: zod.enum(["yes_no", "plurality", "ranked_choice", "multi_select"]),
+  thresholdType: zod
+    .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+    .nullish(),
+  thresholdPercent: zod.number().nullish(),
+  quorumCount: zod.number().nullish(),
+  eligibleVoterCount: zod.number().nullish(),
+  showLiveProgress: zod.boolean(),
+  maxSelections: zod.number().nullish(),
+  status: zod.enum(["draft", "open", "closed"]),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  closedAt: zod.coerce.date().nullish(),
+});
+
+/**
+ * Transitions election from open to closed
+ * @summary Close election (admin)
+ */
+export const CloseElectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CloseElectionResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  voteType: zod.enum(["yes_no", "plurality", "ranked_choice", "multi_select"]),
+  thresholdType: zod
+    .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+    .nullish(),
+  thresholdPercent: zod.number().nullish(),
+  quorumCount: zod.number().nullish(),
+  eligibleVoterCount: zod.number().nullish(),
+  showLiveProgress: zod.boolean(),
+  maxSelections: zod.number().nullish(),
+  status: zod.enum(["draft", "open", "closed"]),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  closedAt: zod.coerce.date().nullish(),
+});

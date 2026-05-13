@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/voting-booth/"
+title = "Voting Booth"
+version = "1.0.0"
+id = "artifacts/voting-booth"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/voting-booth/" ]
+localPort = 26150
+
+[services.development]
+run = "pnpm --filter @workspace/voting-booth run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/voting-booth", "run", "build" ]
+publicDir = "artifacts/voting-booth/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26150"
+BASE_PATH = "/voting-booth/"

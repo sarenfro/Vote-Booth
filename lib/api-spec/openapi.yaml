@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: elections
+    description: Voting booth operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,213 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /elections:
+    get:
+      operationId: listElections
+      tags: [elections]
+      summary: List elections
+      description: Returns visible elections (open and recently closed)
+      responses:
+        "200":
+          description: List of elections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Election"
+    post:
+      operationId: createElection
+      tags: [elections]
+      summary: Create election (admin)
+      description: Creates a new election in draft status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateElectionBody"
+      responses:
+        "201":
+          description: Created election
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ElectionWithOptions"
+        "403":
+          description: Forbidden (not an admin)
+
+  /elections/{id}:
+    get:
+      operationId: getElection
+      tags: [elections]
+      summary: Get election with options
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Election with options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ElectionWithOptions"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateElection
+      tags: [elections]
+      summary: Update election (admin, draft only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateElectionBody"
+      responses:
+        "200":
+          description: Updated election with options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ElectionWithOptions"
+        "403":
+          description: Forbidden (not an admin)
+        "404":
+          description: Not found
+        "409":
+          description: Election is not in draft status
+
+  /elections/{id}/vote:
+    post:
+      operationId: castVote
+      tags: [elections]
+      summary: Cast a vote
+      description: Atomically records the voter log entry and anonymous ballot via cast_vote()
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CastVoteBody"
+      responses:
+        "204":
+          description: Vote recorded
+        "400":
+          description: Invalid payload or election not open
+        "409":
+          description: Member has already voted in this election
+
+  /elections/{id}/tally:
+    get:
+      operationId: getElectionTally
+      tags: [elections]
+      summary: Get vote tally
+      description: Returns aggregate vote counts via election_tally(). Never exposes individual ballots.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tally result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TallyResult"
+        "404":
+          description: Not found
+
+  /elections/{id}/has-voted:
+    get:
+      operationId: hasVoted
+      tags: [elections]
+      summary: Check if a member has voted
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Has voted status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HasVotedResponse"
+
+  /elections/{id}/open:
+    post:
+      operationId: openElection
+      tags: [elections]
+      summary: Open election (admin)
+      description: Transitions election from draft to open
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Election opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Election"
+        "403":
+          description: Forbidden (not an admin)
+        "409":
+          description: Election is not in draft status
+
+  /elections/{id}/close:
+    post:
+      operationId: closeElection
+      tags: [elections]
+      summary: Close election (admin)
+      description: Transitions election from open to closed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Election closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Election"
+        "403":
+          description: Forbidden (not an admin)
+        "409":
+          description: Election is not in open status
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +243,241 @@ components:
       required:
         - status
 
+    Election:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        voteType:
+          type: string
+          enum: [yes_no, plurality, ranked_choice, multi_select]
+        thresholdType:
+          type: string
+          enum: [simple_majority, two_thirds, three_quarters, custom]
+          nullable: true
+        thresholdPercent:
+          type: number
+          nullable: true
+        quorumCount:
+          type: integer
+          nullable: true
+        eligibleVoterCount:
+          type: integer
+          nullable: true
+        showLiveProgress:
+          type: boolean
+        maxSelections:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [draft, open, closed]
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - title
+        - voteType
+        - showLiveProgress
+        - status
+        - createdAt
+
+    ElectionOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        electionId:
+          type: integer
+        label:
+          type: string
+        orderIndex:
+          type: integer
+      required:
+        - id
+        - electionId
+        - label
+        - orderIndex
+
+    ElectionWithOptions:
+      allOf:
+        - $ref: "#/components/schemas/Election"
+        - type: object
+          properties:
+            options:
+              type: array
+              items:
+                $ref: "#/components/schemas/ElectionOption"
+          required:
+            - options
+
+    CreateElectionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        voteType:
+          type: string
+          enum: [yes_no, plurality, ranked_choice, multi_select]
+        thresholdType:
+          type: string
+          enum: [simple_majority, two_thirds, three_quarters, custom]
+          nullable: true
+        thresholdPercent:
+          type: number
+          nullable: true
+        quorumCount:
+          type: integer
+          nullable: true
+        eligibleVoterCount:
+          type: integer
+          nullable: true
+        showLiveProgress:
+          type: boolean
+        maxSelections:
+          type: integer
+          nullable: true
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:
+          type: integer
+          nullable: true
+        options:
+          type: array
+          items:
+            type: string
+          description: Option labels in display order
+      required:
+        - title
+        - voteType
+        - showLiveProgress
+        - options
+
+    UpdateElectionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        thresholdType:
+          type: string
+          enum: [simple_majority, two_thirds, three_quarters, custom]
+          nullable: true
+        thresholdPercent:
+          type: number
+          nullable: true
+        quorumCount:
+          type: integer
+          nullable: true
+        eligibleVoterCount:
+          type: integer
+          nullable: true
+        showLiveProgress:
+          type: boolean
+        maxSelections:
+          type: integer
+          nullable: true
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+
+    CastVoteBody:
+      type: object
+      properties:
+        memberId:
+          type: integer
+        payload:
+          type: object
+          description: >
+            Vote payload. Structure depends on vote_type:
+            yes_no: {"choice": "yes"|"no"},
+            plurality: {"option_id": number},
+            ranked_choice: {"rankings": [{"option_id": number, "rank": number}]},
+            multi_select: {"option_ids": number[]}
+          additionalProperties: true
+      required:
+        - memberId
+        - payload
+
+    TallyOption:
+      type: object
+      properties:
+        optionId:
+          type: integer
+          nullable: true
+        optionLabel:
+          type: string
+        voteCount:
+          type: integer
+      required:
+        - optionLabel
+        - voteCount
+
+    TallyResult:
+      type: object
+      properties:
+        electionId:
+          type: integer
+        totalBallots:
+          type: integer
+        quorumMet:
+          type: boolean
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/TallyOption"
+      required:
+        - electionId
+        - totalBallots
+        - options
+
+    HasVotedResponse:
+      type: object
+      properties:
+        hasVoted:
+          type: boolean
+      required:
+        - hasVoted
