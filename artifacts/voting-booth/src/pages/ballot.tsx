@@ -9,9 +9,9 @@ import {
   getGetElectionTallyQueryKey,
   getHasVotedQueryKey,
   getListElectionsQueryKey,
+  type CastVoteBodyPayload,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemberId } from "@/hooks/use-member-id";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,23 +84,16 @@ export function Ballot() {
   const isAdmin = searchParams.get("admin") === "true";
   const queryClient = useQueryClient();
 
-  const [memberId] = useMemberId();
-  const memberIdNum = memberId ? parseInt(memberId, 10) : undefined;
-
   const { data: election, isLoading } = useGetElection(id, {
     query: { enabled: !!id, queryKey: getGetElectionQueryKey(id) },
   });
 
-  const { data: hasVotedData } = useHasVoted(
-    id,
-    { memberId: memberIdNum! },
-    {
-      query: {
-        enabled: !!id && !!memberIdNum,
-        queryKey: getHasVotedQueryKey(id, { memberId: memberIdNum }),
-      },
-    }
-  );
+  const { data: hasVotedData } = useHasVoted(id, {
+    query: {
+      enabled: !!id,
+      queryKey: getHasVotedQueryKey(id),
+    },
+  });
 
   const castVote = useCastVote();
 
@@ -140,7 +133,7 @@ export function Ballot() {
   }
 
   async function handleSubmit() {
-    if (!memberIdNum || !election) return;
+    if (!election) return;
 
     let payload: unknown;
     if (election.voteType === "yes_no") {
@@ -158,14 +151,14 @@ export function Ballot() {
     }
 
     castVote.mutate(
-      { id: election.id, data: { memberId: memberIdNum, payload } },
+      { id: election.id, data: { payload: payload as CastVoteBodyPayload } },
       {
         onSuccess: () => {
           setSubmitted(true);
           queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetElectionQueryKey(id) });
           queryClient.invalidateQueries({ queryKey: getGetElectionTallyQueryKey(id) });
-          queryClient.invalidateQueries({ queryKey: getHasVotedQueryKey(id, { memberId: memberIdNum }) });
+          queryClient.invalidateQueries({ queryKey: getHasVotedQueryKey(id) });
         },
       }
     );
@@ -219,9 +212,9 @@ export function Ballot() {
         </div>
       </div>
 
-      {!memberIdNum && election.status === "open" && !hasVoted && (
+      {election.status === "open" && !hasVoted && (
         <div className="bg-accent/10 border border-accent/20 rounded-lg px-4 py-3 text-sm text-accent-foreground">
-          Enter your member ID in the top bar to cast your vote.
+          Enter your member ID in the top bar, then cast your vote below.
         </div>
       )}
 
@@ -237,7 +230,7 @@ export function Ballot() {
         </div>
       )}
 
-      {election.status === "open" && !hasVoted && memberIdNum && (
+      {election.status === "open" && !hasVoted && (
         <Card className="shadow-sm">
           <div className="h-1 bg-primary w-full rounded-t-lg" />
           <CardHeader>

@@ -139,7 +139,6 @@ export interface UpdateElectionBody {
 export type CastVoteBodyPayload = { [key: string]: unknown };
 
 export interface CastVoteBody {
-  memberId: number;
   /** Vote payload. Structure depends on vote_type: yes_no: {"choice": "yes"|"no"}, plurality: {"option_id": number}, ranked_choice: {"rankings": [{"option_id": number, "rank": number}]}, multi_select: {"option_ids": number[]}
    */
   payload: CastVoteBodyPayload;
@@ -161,7 +160,3 @@ export interface TallyResult {
 export interface HasVotedResponse {
   hasVoted: boolean;
 }
-
-export type HasVotedParams = {
-  memberId: number;
-};

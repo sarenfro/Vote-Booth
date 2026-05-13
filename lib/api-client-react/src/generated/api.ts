@@ -21,7 +21,6 @@ import type {
   CreateElectionBody,
   Election,
   ElectionWithOptions,
-  HasVotedParams,
   HasVotedResponse,
   HealthStatus,
   TallyResult,
@@ -627,40 +626,24 @@ export function useGetElectionTally<
 }
 
 /**
- * @summary Check if a member has voted
+ * @summary Check if the current member (X-Member-Id header) has voted
  */
-export const getHasVotedUrl = (id: number, params: HasVotedParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/elections/${id}/has-voted?${stringifiedParams}`
-    : `/api/elections/${id}/has-voted`;
+export const getHasVotedUrl = (id: number) => {
+  return `/api/elections/${id}/has-voted`;
 };
 
 export const hasVoted = async (
   id: number,
-  params: HasVotedParams,
   options?: RequestInit,
 ): Promise<HasVotedResponse> => {
-  return customFetch<HasVotedResponse>(getHasVotedUrl(id, params), {
+  return customFetch<HasVotedResponse>(getHasVotedUrl(id), {
     ...options,
     method: "GET",
   });
 };
 
-export const getHasVotedQueryKey = (id: number, params?: HasVotedParams) => {
-  return [
-    `/api/elections/${id}/has-voted`,
-    ...(params ? [params] : []),
-  ] as const;
+export const getHasVotedQueryKey = (id: number) => {
+  return [`/api/elections/${id}/has-voted`] as const;
 };
 
 export const getHasVotedQueryOptions = <
@@ -668,7 +651,6 @@ export const getHasVotedQueryOptions = <
   TError = ErrorType<unknown>,
 >(
   id: number,
-  params: HasVotedParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof hasVoted>>,
@@ -680,11 +662,11 @@ export const getHasVotedQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getHasVotedQueryKey(id, params);
+  const queryKey = queryOptions?.queryKey ?? getHasVotedQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof hasVoted>>> = ({
     signal,
-  }) => hasVoted(id, params, { signal, ...requestOptions });
+  }) => hasVoted(id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -702,7 +684,7 @@ export type HasVotedQueryResult = NonNullable<
 export type HasVotedQueryError = ErrorType<unknown>;
 
 /**
- * @summary Check if a member has voted
+ * @summary Check if the current member (X-Member-Id header) has voted
  */
 
 export function useHasVoted<
@@ -710,7 +692,6 @@ export function useHasVoted<
   TError = ErrorType<unknown>,
 >(
   id: number,
-  params: HasVotedParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof hasVoted>>,
@@ -720,7 +701,7 @@ export function useHasVoted<
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getHasVotedQueryOptions(id, params, options);
+  const queryOptions = getHasVotedQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

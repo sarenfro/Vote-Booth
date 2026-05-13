@@ -105,7 +105,7 @@ export function Admin() {
           title: title.trim(),
           description: description.trim() || undefined,
           voteType,
-          options: needsOptions ? validOptions : undefined,
+          options: needsOptions ? validOptions : [],
           quorumCount: quorumCount ? parseInt(quorumCount, 10) : undefined,
           eligibleVoterCount: eligibleCount ? parseInt(eligibleCount, 10) : undefined,
           maxSelections: voteType === "multi_select" && maxSelections ? parseInt(maxSelections, 10) : undefined,

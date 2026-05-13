@@ -180,7 +180,6 @@ export const CastVoteParams = zod.object({
 });
 
 export const CastVoteBody = zod.object({
-  memberId: zod.number(),
   payload: zod
     .record(zod.string(), zod.unknown())
     .describe(
@@ -210,14 +209,10 @@ export const GetElectionTallyResponse = zod.object({
 });
 
 /**
- * @summary Check if a member has voted
+ * @summary Check if the current member (X-Member-Id header) has voted
  */
 export const HasVotedParams = zod.object({
   id: zod.coerce.number(),
-});
-
-export const HasVotedQueryParams = zod.object({
-  memberId: zod.coerce.number(),
 });
 
 export const HasVotedResponse = zod.object({

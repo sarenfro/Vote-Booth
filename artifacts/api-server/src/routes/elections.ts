@@ -39,19 +39,36 @@ async function requireAdmin(req: Request, res: Response): Promise<boolean> {
   return true;
 }
 
-// GET /api/elections: list open and recently closed elections
-router.get("/elections", async (_req: Request, res: Response) => {
+// GET /api/elections: list elections.
+// Admins (valid X-Member-Id with isAdmin = true) see all statuses including drafts.
+// Non-admins see open and closed elections only.
+router.get("/elections", async (req: Request, res: Response) => {
+  const memberId = getMemberId(req);
+  let isAdmin = false;
+  if (memberId) {
+    const [member] = await db
+      .select({ isAdmin: members.isAdmin })
+      .from(members)
+      .where(eq(members.id, memberId))
+      .limit(1);
+    isAdmin = member?.isAdmin ?? false;
+  }
+
   const rows = await db
     .select()
     .from(elections)
-    .where(or(eq(elections.status, "open"), eq(elections.status, "closed")))
+    .where(
+      isAdmin
+        ? undefined
+        : or(eq(elections.status, "open"), eq(elections.status, "closed")),
+    )
     .orderBy(desc(elections.createdAt));
   res.json(rows);
 });
 
 // GET /api/elections/:id: single election with options
 router.get("/elections/:id", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const [election] = await db
     .select()
     .from(elections)
@@ -69,17 +86,21 @@ router.get("/elections/:id", async (req: Request, res: Response) => {
   res.json({ ...election, options });
 });
 
-// POST /api/elections/:id/vote: cast a vote via cast_vote() Postgres function
+// POST /api/elections/:id/vote: cast a vote via cast_vote() Postgres function.
+// Member identity is derived from the X-Member-Id header only; the client
+// MUST NOT pass memberId in the body. This prevents identity spoofing.
 // Direct inserts into ballots are intentionally bypassed. The Postgres function
 // handles both voter_log (who voted) and ballots (what was voted) atomically.
 router.post("/elections/:id/vote", async (req: Request, res: Response) => {
-  const electionId = parseInt(req.params.id, 10);
-  const { memberId, payload } = req.body as {
-    memberId: number;
-    payload: unknown;
-  };
-  if (!memberId || payload === undefined) {
-    res.status(400).json({ error: "memberId and payload are required" });
+  const electionId = parseInt(req.params.id as string, 10);
+  const memberId = getMemberId(req);
+  const { payload } = req.body as { payload: unknown };
+  if (!memberId) {
+    res.status(401).json({ error: "X-Member-Id header required" });
+    return;
+  }
+  if (payload === undefined) {
+    res.status(400).json({ error: "payload is required" });
     return;
   }
   try {
@@ -105,7 +126,7 @@ router.post("/elections/:id/vote", async (req: Request, res: Response) => {
 // GET /api/elections/:id/tally: aggregate counts via election_tally() function
 // Individual ballot rows are never exposed: all reads go through this function.
 router.get("/elections/:id/tally", async (req: Request, res: Response) => {
-  const electionId = parseInt(req.params.id, 10);
+  const electionId = parseInt(req.params.id as string, 10);
   const [election] = await db
     .select({ quorumCount: elections.quorumCount })
     .from(elections)
@@ -135,12 +156,13 @@ router.get("/elections/:id/tally", async (req: Request, res: Response) => {
   res.json({ electionId, totalBallots, quorumMet, options });
 });
 
-// GET /api/elections/:id/has-voted: check voter_log for current member
+// GET /api/elections/:id/has-voted: check voter_log for the current member.
+// Member identity is derived from the X-Member-Id header only.
 router.get("/elections/:id/has-voted", async (req: Request, res: Response) => {
-  const electionId = parseInt(req.params.id, 10);
-  const memberId = parseInt(req.query.memberId as string, 10);
-  if (isNaN(memberId)) {
-    res.status(400).json({ error: "memberId query parameter required" });
+  const electionId = parseInt(req.params.id as string, 10);
+  const memberId = getMemberId(req);
+  if (!memberId) {
+    res.status(401).json({ error: "X-Member-Id header required" });
     return;
   }
   const [row] = await db
@@ -186,8 +208,13 @@ router.post("/elections", async (req: Request, res: Response) => {
     options: string[];
   };
 
-  if (!title || !voteType || !Array.isArray(optionLabels)) {
-    res.status(400).json({ error: "title, voteType, and options are required" });
+  const needsOptions = ["plurality", "ranked_choice", "multi_select"].includes(voteType);
+  if (!title || !voteType) {
+    res.status(400).json({ error: "title and voteType are required" });
+    return;
+  }
+  if (needsOptions && (!Array.isArray(optionLabels) || optionLabels.length < 2)) {
+    res.status(400).json({ error: "At least 2 options are required for this vote type" });
     return;
   }
 
@@ -231,7 +258,7 @@ router.post("/elections", async (req: Request, res: Response) => {
 // PATCH /api/elections/:id: update a draft election (admin only)
 router.patch("/elections/:id", async (req: Request, res: Response) => {
   if (!(await requireAdmin(req, res))) return;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const [existing] = await db
     .select()
     .from(elections)
@@ -315,7 +342,7 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
 // POST /api/elections/:id/open: transition draft to open (admin only)
 router.post("/elections/:id/open", async (req: Request, res: Response) => {
   if (!(await requireAdmin(req, res))) return;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const [existing] = await db
     .select()
     .from(elections)
@@ -340,7 +367,7 @@ router.post("/elections/:id/open", async (req: Request, res: Response) => {
 // POST /api/elections/:id/close: transition open to closed (admin only)
 router.post("/elections/:id/close", async (req: Request, res: Response) => {
   if (!(await requireAdmin(req, res))) return;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const [existing] = await db
     .select()
     .from(elections)

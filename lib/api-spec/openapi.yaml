@@ -165,15 +165,10 @@ paths:
     get:
       operationId: hasVoted
       tags: [elections]
-      summary: Check if a member has voted
+      summary: Check if the current member (X-Member-Id header) has voted
       parameters:
         - name: id
           in: path
-          required: true
-          schema:
-            type: integer
-        - name: memberId
-          in: query
           required: true
           schema:
             type: integer
@@ -426,8 +421,6 @@ components:
     CastVoteBody:
       type: object
       properties:
-        memberId:
-          type: integer
         payload:
           type: object
           description: >
@@ -438,7 +431,6 @@ components:
             multi_select: {"option_ids": number[]}
           additionalProperties: true
       required:
-        - memberId
         - payload
 
     TallyOption:
