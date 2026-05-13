@@ -1,0 +1,69 @@
+Build a new Voting Booth feature for this monorepo, following the exact same architectural pattern as the existing Membership Dues and Student Directory pages.
+
+CONTEXT
+This is for the Foster MBAA student association. Members vote on bylaw amendments and officer elections. The voting must support 4 ballot types (admin picks at creation): yes/no with threshold, plurality, ranked choice, multi-select.
+
+REQUIREMENTS
+1. Reuse the existing `members` table as the eligibility roster. Do NOT create a parallel roster table. Restrict logins to @uw.edu emails.
+2. Add `is_admin boolean default false` column to `members`.
+3. Anonymous ballots are non-negotiable. The schema MUST split voting into two tables with no foreign key between them:
+   - `voter_log` records WHO voted (member_id, election_id, voted_at, UNIQUE constraint on (election_id, member_id) to prevent double-voting). Used for quorum tracking and double-vote prevention.
+   - `ballots` records WHAT was voted (election_id, payload jsonb, submitted_at). NO voter_id column. NO foreign key to members.
+   - A single Postgres function `cast_vote()` writes both atomically in one transaction. This is the only way ballots can be inserted.
+   - Direct SELECT on `ballots` should be restricted at the database role level. Reads happen only through `election_tally()` which returns aggregate counts.
+
+SCOPE FOR PHASE 1
+- Drizzle schemas for: `elections`, `election_options`, `ballots`, `voter_log`, plus `is_admin` on `members`. Match the style of existing schemas in `lib/db/src/schema/`.
+- A separate raw SQL migration file for the `cast_vote()` and `election_tally()` Postgres functions. Drizzle does not natively handle these. Place in `lib/db/migrations/manual/` or wherever fits the project convention.
+- Express routes following the pattern in `artifacts/api-server/src/routes/`:
+  GET /api/elections (list visible)
+  GET /api/elections/:id (one with options)
+  POST /api/elections/:id/vote (calls cast_vote)
+  GET /api/elections/:id/tally (calls election_tally)
+  GET /api/elections/:id/has-voted (boolean for current user)
+  POST /api/elections (admin create)
+  PATCH /api/elections/:id (admin update)
+  POST /api/elections/:id/open (admin transition)
+  POST /api/elections/:id/close (admin transition)
+- Add the new routes to `lib/api-spec/openapi.yaml`, then run codegen.
+- New frontend page at `/voting` (the Voting Booth): list of currently open and recently closed elections. Match the editorial UW Foster style of existing pages (purple #4B2E83, gold #B7A57A, off-white #FAFAF7, Open Sans display + Inter body, hairline dividers, tiny uppercase eyebrow labels).
+- Voter ballot page at `/voting/:id`: renders ballot UI matched to vote_type, shows progress bars and quorum tracker after voting, shows confirmation message.
+- Admin section: election creation form (admin picks vote_type), election management view.
+- Add navigation entry alongside Membership Dues and Student Directory.
+
+ELECTION SCHEMA FIELDS
+- id, title, description (text)
+- vote_type (enum: yes_no, plurality, ranked_choice, multi_select)
+- threshold_type (enum: simple_majority, two_thirds, three_quarters, custom)
+- threshold_percent (numeric, used when threshold_type = custom)
+- quorum_count (int, votes needed for valid election)
+- eligible_voter_count (int, snapshot at creation)
+- show_live_progress (bool, default true)
+- max_selections (int, used when vote_type = multi_select)
+- status (enum: draft, open, closed)
+- starts_at, ends_at (timestamptz)
+- created_by (FK to members.id)
+- created_at, closed_at (timestamptz)
+
+OUT OF SCOPE FOR PHASE 1
+- IRV tally computation for ranked_choice (return raw first-choice counts only; full IRV ships in phase 5)
+- QR code generation UI (phase 2)
+- Audit export PDF (phase 6)
+- Realtime subscriptions for live progress (poll for now)
+
+CRITICAL ARCHITECTURAL CALLOUTS
+- If the Express server connects to Postgres as a superuser, SECURITY DEFINER functions will not actually restrict admin access to ballots. Flag this explicitly. The proper fix is a separate Postgres role for the app with restricted permissions on `ballots`, and the `cast_vote`/`election_tally` functions run as a more privileged role. Implement this if possible; if not, flag it as a known limitation in the README.
+- Do NOT add a `voter_id` column to `ballots`. Do NOT add a foreign key from `ballots` to `voter_log`. The separation is the entire integrity guarantee.
+
+WRITING STYLE
+- Never use em dashes in any code comments, documentation, or commit messages. Use colons, commas, parentheses, or sentence breaks.
+- Flag inferences as inferences. Do not present guesses as confirmed facts.
+
+VERIFICATION
+Before declaring phase 1 complete, run:
+- pnpm run typecheck
+- pnpm --filter @workspace/api-spec run codegen
+- pnpm --filter @workspace/db run push (or whatever the project's migration command is)
+Confirm all three succeed.
+
+Reference SQL for the two Postgres functions is in the next message.
