@@ -5,11 +5,11 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-function getMemberId(req: Request): number | null {
+function getMemberId(req: Request): string | null {
   const raw = req.headers["x-member-id"];
   if (!raw || Array.isArray(raw)) return null;
-  const id = parseInt(raw, 10);
-  return isNaN(id) ? null : id;
+  const id = raw.trim();
+  return id || null;
 }
 
 // GET /api/members: list all members (id, name, email prefix, role flags) — no auth required.

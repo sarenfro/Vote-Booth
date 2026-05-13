@@ -9,7 +9,7 @@ export const ballotDocuments = pgTable("ballot_documents", {
     .references(() => elections.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   objectPath: text("object_path").notNull(),
-  uploadedBy: integer("uploaded_by").references(() => members.id),
+  uploadedBy: text("uploaded_by").references(() => members.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

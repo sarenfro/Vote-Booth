@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { elections } from "./elections";
@@ -11,7 +11,7 @@ export const voterLog = pgTable(
     electionId: integer("election_id")
       .notNull()
       .references(() => elections.id, { onDelete: "cascade" }),
-    memberId: integer("member_id")
+    memberId: text("member_id")
       .notNull()
       .references(() => members.id),
     votedAt: timestamp("voted_at", { withTimezone: true }).notNull().defaultNow(),
