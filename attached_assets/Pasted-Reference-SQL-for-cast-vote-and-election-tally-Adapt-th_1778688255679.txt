@@ -1,0 +1,126 @@
+Reference SQL for cast_vote() and election_tally(). Adapt these to fit the final Drizzle schema you generate. The validation logic and the split-table insert pattern in cast_vote MUST be preserved exactly.
+
+```sql
+create or replace function cast_vote(
+  p_election_id uuid,
+  p_payload jsonb,
+  p_voter_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_election elections%rowtype;
+begin
+  if p_voter_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if not exists (select 1 from members where id = p_voter_id) then
+    raise exception 'Not a registered member';
+  end if;
+
+  select * into v_election from elections where id = p_election_id;
+  if not found then raise exception 'Election not found'; end if;
+
+  if v_election.status != 'open' then raise exception 'Election is not open'; end if;
+  if v_election.starts_at is not null and now() < v_election.starts_at then
+    raise exception 'Election has not started';
+  end if;
+  if v_election.ends_at is not null and now() > v_election.ends_at then
+    raise exception 'Election has ended';
+  end if;
+
+  -- Validate payload per vote_type
+  case v_election.vote_type
+    when 'yes_no' then
+      if not (p_payload ? 'choice') or not (p_payload->>'choice' in ('yes','no')) then
+        raise exception 'Invalid yes/no payload';
+      end if;
+    when 'plurality' then
+      if not (p_payload ? 'option_id') then
+        raise exception 'Invalid plurality payload';
+      end if;
+    when 'ranked_choice' then
+      if not (p_payload ? 'ranking') or jsonb_typeof(p_payload->'ranking') != 'array' then
+        raise exception 'Invalid ranked_choice payload';
+      end if;
+    when 'multi_select' then
+      if not (p_payload ? 'option_ids') or jsonb_typeof(p_payload->'option_ids') != 'array' then
+        raise exception 'Invalid multi_select payload';
+      end if;
+      if jsonb_array_length(p_payload->'option_ids') > v_election.max_selections then
+        raise exception 'Too many selections';
+      end if;
+  end case;
+
+  -- Voter_log UNIQUE constraint blocks double votes
+  insert into voter_log (election_id, member_id) values (p_election_id, p_voter_id);
+  -- Ballots has no voter link
+  insert into ballots (election_id, payload) values (p_election_id, p_payload);
+end;
+$$;
+
+create or replace function election_tally(p_election_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_election elections%rowtype;
+  v_total integer;
+  v_result jsonb;
+begin
+  select * into v_election from elections where id = p_election_id;
+  if not found then raise exception 'Election not found'; end if;
+  select count(*) into v_total from ballots where election_id = p_election_id;
+
+  case v_election.vote_type
+    when 'yes_no' then
+      select jsonb_build_object(
+        'vote_type','yes_no',
+        'total_votes',v_total,
+        'eligible_voter_count',v_election.eligible_voter_count,
+        'quorum_count',v_election.quorum_count,
+        'quorum_met',v_total >= v_election.quorum_count,
+        'yes',(select count(*) from ballots where election_id = p_election_id and payload->>'choice'='yes'),
+        'no',(select count(*) from ballots where election_id = p_election_id and payload->>'choice'='no')
+      ) into v_result;
+    when 'plurality' then
+      select jsonb_build_object(
+        'vote_type','plurality',
+        'total_votes',v_total,
+        'eligible_voter_count',v_election.eligible_voter_count,
+        'quorum_count',v_election.quorum_count,
+        'quorum_met',v_total >= v_election.quorum_count,
+        'counts',coalesce((select jsonb_object_agg(option_id,c) from (select payload->>'option_id' as option_id,count(*) as c from ballots where election_id = p_election_id group by 1) s), '{}'::jsonb)
+      ) into v_result;
+    when 'multi_select' then
+      select jsonb_build_object(
+        'vote_type','multi_select',
+        'total_votes',v_total,
+        'eligible_voter_count',v_election.eligible_voter_count,
+        'quorum_count',v_election.quorum_count,
+        'quorum_met',v_total >= v_election.quorum_count,
+        'counts',coalesce((select jsonb_object_agg(opt_id,c) from (select jsonb_array_elements_text(payload->'option_ids') as opt_id,count(*) as c from ballots where election_id = p_election_id group by 1) s), '{}'::jsonb)
+      ) into v_result;
+    when 'ranked_choice' then
+      select jsonb_build_object(
+        'vote_type','ranked_choice',
+        'total_votes',v_total,
+        'eligible_voter_count',v_election.eligible_voter_count,
+        'quorum_count',v_election.quorum_count,
+        'quorum_met',v_total >= v_election.quorum_count,
+        'first_choice_counts',coalesce((select jsonb_object_agg(opt_id,c) from (select payload->'ranking'->>0 as opt_id,count(*) as c from ballots where election_id = p_election_id group by 1) s), '{}'::jsonb)
+      ) into v_result;
+  end case;
+
+  return v_result;
+end;
+$$;
+```
+
+Note: I had `voter_id` referencing `profiles(user_id)` in the original design because it was for Supabase Auth. In your schema, this should reference `members(id)`. The function signature now takes `p_voter_id` as an explicit parameter rather than relying on `auth.uid()`, since this isn't Supabase. The route handler should pass the authenticated user's member_id.

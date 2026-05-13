@@ -10,6 +10,16 @@ import { eq, and, or, desc, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+// Helper: coerce Drizzle `numeric` field (returned as string) to number so the
+// API response matches the OpenAPI spec declaration of `number`.
+function formatElection(row: typeof elections.$inferSelect) {
+  return {
+    ...row,
+    thresholdPercent:
+      row.thresholdPercent != null ? parseFloat(row.thresholdPercent) : null,
+  };
+}
+
 // Helper: resolve member from X-Member-Id header.
 // NOTE: This is a placeholder for a real auth system. Phase 1 uses a plain
 // integer header. A proper auth system (e.g. session, JWT) ships in a later
@@ -63,7 +73,7 @@ router.get("/elections", async (req: Request, res: Response) => {
         : or(eq(elections.status, "open"), eq(elections.status, "closed")),
     )
     .orderBy(desc(elections.createdAt));
-  res.json(rows);
+  res.json(rows.map(formatElection));
 });
 
 // GET /api/elections/:id: single election with options.
@@ -100,7 +110,7 @@ router.get("/elections/:id", async (req: Request, res: Response) => {
     .from(electionOptions)
     .where(eq(electionOptions.electionId, id))
     .orderBy(electionOptions.orderIndex);
-  res.json({ ...election, options });
+  res.json({ ...formatElection(election), options });
 });
 
 // POST /api/elections/:id/vote: cast a vote via cast_vote() Postgres function.
@@ -253,7 +263,7 @@ router.post("/elections", async (req: Request, res: Response) => {
     })
     .returning();
 
-  if (optionLabels.length > 0) {
+  if (Array.isArray(optionLabels) && optionLabels.length > 0) {
     await db.insert(electionOptions).values(
       optionLabels.map((label: string, i: number) => ({
         electionId: newElection.id,
@@ -269,7 +279,7 @@ router.post("/elections", async (req: Request, res: Response) => {
     .where(eq(electionOptions.electionId, newElection.id))
     .orderBy(electionOptions.orderIndex);
 
-  res.status(201).json({ ...newElection, options: opts });
+  res.status(201).json({ ...formatElection(newElection), options: opts });
 });
 
 // PATCH /api/elections/:id: update a draft election (admin only)
@@ -353,7 +363,7 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
     .where(eq(electionOptions.electionId, id))
     .orderBy(electionOptions.orderIndex);
 
-  res.json({ ...updated, options: opts });
+  res.json({ ...formatElection(updated), options: opts });
 });
 
 // POST /api/elections/:id/open: transition draft to open (admin only)
@@ -378,7 +388,7 @@ router.post("/elections/:id/open", async (req: Request, res: Response) => {
     .set({ status: "open" })
     .where(eq(elections.id, id))
     .returning();
-  res.json(updated);
+  res.json(formatElection(updated));
 });
 
 // POST /api/elections/:id/close: transition open to closed (admin only)
@@ -403,7 +413,7 @@ router.post("/elections/:id/close", async (req: Request, res: Response) => {
     .set({ status: "closed", closedAt: new Date() })
     .where(eq(elections.id, id))
     .returning();
-  res.json(updated);
+  res.json(formatElection(updated));
 });
 
 export default router;
