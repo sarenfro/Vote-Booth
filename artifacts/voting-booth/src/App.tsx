@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { Home } from "@/pages/home";
 import { Layout } from "@/components/layout";
-import { Admin } from "@/pages/admin";
 import { Ballot } from "@/pages/ballot";
 import { EcDashboard } from "@/pages/ec-dashboard";
 import { Results } from "@/pages/results";
@@ -16,7 +15,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/admin" component={Admin} />
       <Route path="/ec" component={EcDashboard} />
       <Route path="/results" component={Results} />
       <Route path="/:id" component={Ballot} />

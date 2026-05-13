@@ -2,7 +2,6 @@ import { Link, useRoute } from "wouter";
 import { useMemberId } from "@/hooks/use-member-id";
 import { useMe } from "@/hooks/use-me";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [memberId, setMemberId] = useMemberId();
@@ -29,13 +28,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-4">
-            {isAdmin && (
-              <Link href="/admin">
-                <Button variant="secondary" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 border-transparent font-medium shadow-sm">
-                  Admin Panel
-                </Button>
-              </Link>
-            )}
             <div className="flex items-center gap-2">
               <span className="text-sm text-primary-foreground/80 hidden sm:inline-block">NetID:</span>
               <Input

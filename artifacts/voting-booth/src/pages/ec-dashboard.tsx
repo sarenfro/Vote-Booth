@@ -5,6 +5,7 @@ import {
   useCreateElection,
   useOpenElection,
   useCloseElection,
+  useUpdateElection,
   getListElectionsQueryKey,
   useListDocuments,
   useCreateDocument,
@@ -133,7 +134,9 @@ export function EcDashboard() {
   const createElection = useCreateElection();
   const openElection = useOpenElection();
   const closeElection = useCloseElection();
+  const updateElection = useUpdateElection();
 
+  // Create form state
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -143,6 +146,14 @@ export function EcDashboard() {
   const [eligibleCount, setEligibleCount] = useState("");
   const [maxSelections, setMaxSelections] = useState("");
   const [formError, setFormError] = useState("");
+
+  // Inline edit state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editQuorum, setEditQuorum] = useState("");
+  const [editEligible, setEditEligible] = useState("");
+  const [editError, setEditError] = useState("");
 
   function resetForm() {
     setTitle(""); setDescription(""); setVoteType("yes_no");
@@ -180,6 +191,46 @@ export function EcDashboard() {
     );
   }
 
+  function handleOpen(id: number) {
+    openElection.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) });
+  }
+
+  function handleClose(id: number) {
+    closeElection.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) });
+  }
+
+  function startEdit(election: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null }) {
+    setEditingId(election.id);
+    setEditTitle(election.title);
+    setEditDescription(election.description ?? "");
+    setEditQuorum(election.quorumCount != null ? String(election.quorumCount) : "");
+    setEditEligible(election.eligibleVoterCount != null ? String(election.eligibleVoterCount) : "");
+    setEditError("");
+  }
+
+  function cancelEdit() { setEditingId(null); setEditError(""); }
+
+  function handleUpdate(id: number) {
+    if (!editTitle.trim()) { setEditError("Title is required."); return; }
+    updateElection.mutate(
+      {
+        id,
+        data: {
+          title: editTitle.trim(),
+          description: editDescription.trim() || null,
+          quorumCount: editQuorum ? parseInt(editQuorum, 10) : null,
+          eligibleVoterCount: editEligible ? parseInt(editEligible, 10) : null,
+        },
+      },
+      {
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }); setEditingId(null); },
+        onError: (err: unknown) => {
+          setEditError((err as { data?: { error?: string } })?.data?.error ?? "Failed to save changes.");
+        },
+      }
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -187,7 +238,11 @@ export function EcDashboard() {
           <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Executive Council</p>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">EC Dashboard</h2>
         </div>
-        <Button size="sm" onClick={() => setShowForm(v => !v)}>
+        <Button
+          data-testid="button-new-election"
+          size="sm"
+          onClick={() => setShowForm(v => !v)}
+        >
           {showForm ? "Cancel" : "New Initiative"}
         </Button>
       </div>
@@ -200,20 +255,33 @@ export function EcDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
-              <Label htmlFor="ec-input-title">Title</Label>
-              <Input id="ec-input-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. President 2026-2027" />
+              <Label htmlFor="input-title">Title</Label>
+              <Input
+                id="input-title"
+                data-testid="input-election-title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. President 2026-2027"
+              />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="ec-input-description">Description (optional)</Label>
-              <Textarea id="ec-input-description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the ballot initiative..." rows={2} />
+              <Label htmlFor="input-description">Description (optional)</Label>
+              <Textarea
+                id="input-description"
+                data-testid="input-election-description"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Describe the ballot initiative..."
+                rows={2}
+              />
             </div>
             <div className="space-y-1">
               <Label>Vote Type</Label>
               <Select value={voteType} onValueChange={v => setVoteType(v as ElectionVoteType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger data-testid="select-vote-type"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(VOTE_TYPE_LABELS).map(([val, label]) => (
-                    <SelectItem key={val} value={val}>{label}</SelectItem>
+                    <SelectItem key={val} value={val} data-testid={`vote-type-${val}`}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -223,36 +291,65 @@ export function EcDashboard() {
                 <Label>Options</Label>
                 {optionInputs.map((opt, idx) => (
                   <div key={idx} className="flex gap-2">
-                    <Input value={opt} onChange={e => setOptionInputs(prev => prev.map((o, i) => i === idx ? e.target.value : o))} placeholder={`Option ${idx + 1}`} />
+                    <Input
+                      data-testid={`input-option-${idx}`}
+                      value={opt}
+                      onChange={e => setOptionInputs(prev => prev.map((o, i) => i === idx ? e.target.value : o))}
+                      placeholder={`Option ${idx + 1}`}
+                    />
                     {optionInputs.length > 2 && (
                       <Button type="button" variant="ghost" size="sm" onClick={() => setOptionInputs(prev => prev.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive">Remove</Button>
                     )}
                   </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => setOptionInputs(prev => [...prev, ""])}>Add option</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setOptionInputs(prev => [...prev, ""])} data-testid="button-add-option">Add option</Button>
               </div>
             )}
             {voteType === "multi_select" && (
               <div className="space-y-1">
                 <Label>Max selections (optional)</Label>
-                <Input type="number" min={1} value={maxSelections} onChange={e => setMaxSelections(e.target.value)} placeholder="Leave blank for unlimited" className="w-48" />
+                <Input
+                  data-testid="input-max-selections"
+                  type="number" min={1}
+                  value={maxSelections}
+                  onChange={e => setMaxSelections(e.target.value)}
+                  placeholder="Leave blank for unlimited"
+                  className="w-48"
+                />
               </div>
             )}
             <Separator />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Quorum count (optional)</Label>
-                <Input type="number" min={1} value={quorumCount} onChange={e => setQuorumCount(e.target.value)} placeholder="e.g. 30" />
+                <Input
+                  data-testid="input-quorum-count"
+                  type="number" min={1}
+                  value={quorumCount}
+                  onChange={e => setQuorumCount(e.target.value)}
+                  placeholder="e.g. 30"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Eligible voters (optional)</Label>
-                <Input type="number" min={1} value={eligibleCount} onChange={e => setEligibleCount(e.target.value)} placeholder="e.g. 58" />
+                <Input
+                  data-testid="input-eligible-count"
+                  type="number" min={1}
+                  value={eligibleCount}
+                  onChange={e => setEligibleCount(e.target.value)}
+                  placeholder="e.g. 58"
+                />
               </div>
             </div>
             {formError && <p className="text-sm text-destructive">{formError}</p>}
           </CardContent>
           <CardFooter className="border-t border-border/50 pt-4 gap-3">
-            <Button onClick={handleCreate} disabled={createElection.isPending} className="font-semibold">
+            <Button
+              data-testid="button-create-election"
+              onClick={handleCreate}
+              disabled={createElection.isPending}
+              className="font-semibold"
+            >
               {createElection.isPending ? "Creating..." : "Create as Draft"}
             </Button>
             <Button variant="ghost" onClick={resetForm}>Cancel</Button>
@@ -283,8 +380,22 @@ export function EcDashboard() {
                     <ElectionCard
                       key={election.id}
                       election={election}
-                      onOpen={(id) => openElection.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) })}
-                      onClose={(id) => closeElection.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) })}
+                      editingId={editingId}
+                      editTitle={editTitle}
+                      editDescription={editDescription}
+                      editQuorum={editQuorum}
+                      editEligible={editEligible}
+                      editError={editError}
+                      onEditTitle={setEditTitle}
+                      onEditDescription={setEditDescription}
+                      onEditQuorum={setEditQuorum}
+                      onEditEligible={setEditEligible}
+                      onStartEdit={startEdit}
+                      onCancelEdit={cancelEdit}
+                      onSaveEdit={handleUpdate}
+                      savePending={updateElection.isPending}
+                      onOpen={handleOpen}
+                      onClose={handleClose}
                       openPending={openElection.isPending}
                       closePending={closeElection.isPending}
                     />
@@ -306,19 +417,40 @@ interface ElectionCardProps {
     status: string;
     voteType: string;
     eligibleVoterCount?: number | null;
+    quorumCount?: number | null;
     description?: string | null;
   };
+  editingId: number | null;
+  editTitle: string;
+  editDescription: string;
+  editQuorum: string;
+  editEligible: string;
+  editError: string;
+  onEditTitle: (v: string) => void;
+  onEditDescription: (v: string) => void;
+  onEditQuorum: (v: string) => void;
+  onEditEligible: (v: string) => void;
+  onStartEdit: (e: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null }) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (id: number) => void;
+  savePending: boolean;
   onOpen: (id: number) => void;
   onClose: (id: number) => void;
   openPending: boolean;
   closePending: boolean;
 }
 
-function ElectionCard({ election, onOpen, onClose, openPending, closePending }: ElectionCardProps) {
+function ElectionCard({
+  election, editingId, editTitle, editDescription, editQuorum, editEligible, editError,
+  onEditTitle, onEditDescription, onEditQuorum, onEditEligible,
+  onStartEdit, onCancelEdit, onSaveEdit, savePending,
+  onOpen, onClose, openPending, closePending,
+}: ElectionCardProps) {
   const [showDocs, setShowDocs] = useState(false);
+  const isEditing = editingId === election.id;
 
   return (
-    <Card className="shadow-sm">
+    <Card data-testid={`card-election-${election.id}`} className="shadow-sm">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -327,7 +459,7 @@ function ElectionCard({ election, onOpen, onClose, openPending, closePending }: 
               {VOTE_TYPE_LABELS[election.voteType] ?? election.voteType}
               {election.eligibleVoterCount ? ` · ${election.eligibleVoterCount} eligible` : ""}
             </p>
-            {election.description && (
+            {election.description && !isEditing && (
               <p className="text-sm text-muted-foreground mt-1">{election.description}</p>
             )}
           </div>
@@ -335,31 +467,79 @@ function ElectionCard({ election, onOpen, onClose, openPending, closePending }: 
         </div>
       </CardHeader>
 
-      <CardContent className="pb-2 pt-0">
-        <button
-          onClick={() => setShowDocs(v => !v)}
-          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-        >
-          {showDocs ? "Hide documents" : "Manage documents"}
-        </button>
-        {showDocs && (
-          <div className="mt-3">
-            <DocumentUploader electionId={election.id} />
+      {isEditing && (
+        <CardContent className="pt-0 pb-3 space-y-3 border-t border-border/50">
+          <div className="space-y-1 pt-3">
+            <Label>Title</Label>
+            <Input value={editTitle} onChange={e => onEditTitle(e.target.value)} />
           </div>
-        )}
-      </CardContent>
+          <div className="space-y-1">
+            <Label>Description (optional)</Label>
+            <Textarea value={editDescription} onChange={e => onEditDescription(e.target.value)} rows={2} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Quorum count</Label>
+              <Input type="number" min={1} value={editQuorum} onChange={e => onEditQuorum(e.target.value)} placeholder="e.g. 30" />
+            </div>
+            <div className="space-y-1">
+              <Label>Eligible voters</Label>
+              <Input type="number" min={1} value={editEligible} onChange={e => onEditEligible(e.target.value)} placeholder="e.g. 58" />
+            </div>
+          </div>
+          {editError && <p className="text-sm text-destructive">{editError}</p>}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => onSaveEdit(election.id)} disabled={savePending}>
+              {savePending ? "Saving…" : "Save"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onCancelEdit}>Cancel</Button>
+          </div>
+        </CardContent>
+      )}
+
+      {!isEditing && (
+        <CardContent className="pb-2 pt-0">
+          <button
+            onClick={() => setShowDocs(v => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          >
+            {showDocs ? "Hide documents" : "Manage documents"}
+          </button>
+          {showDocs && (
+            <div className="mt-3">
+              <DocumentUploader electionId={election.id} />
+            </div>
+          )}
+        </CardContent>
+      )}
 
       <CardFooter className="pt-2 pb-3 gap-2">
         <Link href={`/${election.id}`}>
           <Button variant="outline" size="sm">View ballot</Button>
         </Link>
-        {election.status === "draft" && (
-          <Button size="sm" onClick={() => onOpen(election.id)} disabled={openPending}>
+        {election.status !== "closed" && !isEditing && (
+          <Button variant="outline" size="sm" onClick={() => onStartEdit(election)}>
+            Edit
+          </Button>
+        )}
+        {election.status === "draft" && !isEditing && (
+          <Button
+            data-testid={`button-open-election-${election.id}`}
+            size="sm"
+            onClick={() => onOpen(election.id)}
+            disabled={openPending}
+          >
             Open for Voting
           </Button>
         )}
-        {election.status === "open" && (
-          <Button size="sm" variant="destructive" onClick={() => onClose(election.id)} disabled={closePending}>
+        {election.status === "open" && !isEditing && (
+          <Button
+            data-testid={`button-close-election-${election.id}`}
+            size="sm"
+            variant="destructive"
+            onClick={() => onClose(election.id)}
+            disabled={closePending}
+          >
             Close Election
           </Button>
         )}
