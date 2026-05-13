@@ -50,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="max-w-5xl mx-auto px-6 flex items-center gap-1 pb-0" aria-label="Portal navigation">
           <NavTab label="Voting Booth" href="/" active={activeLabel === "Voting Booth"} enabled />
-          {isEc && <NavTab label="EC Dashboard" href="/ec" active={activeLabel === "EC Dashboard"} enabled />}
+          {(isEc || isAdmin) && <NavTab label="EC Dashboard" href="/ec" active={activeLabel === "EC Dashboard"} enabled />}
           <NavTab label="Results" href="/results" active={activeLabel === "Results"} enabled />
         </nav>
       </header>
