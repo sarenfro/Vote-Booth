@@ -66,7 +66,8 @@ router.get("/elections", async (req: Request, res: Response) => {
   res.json(rows);
 });
 
-// GET /api/elections/:id: single election with options
+// GET /api/elections/:id: single election with options.
+// Draft elections are only visible to admins.
 router.get("/elections/:id", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const [election] = await db
@@ -77,6 +78,22 @@ router.get("/elections/:id", async (req: Request, res: Response) => {
   if (!election) {
     res.status(404).json({ error: "Election not found" });
     return;
+  }
+  if (election.status === "draft") {
+    const memberId = getMemberId(req);
+    let isAdmin = false;
+    if (memberId) {
+      const [member] = await db
+        .select({ isAdmin: members.isAdmin })
+        .from(members)
+        .where(eq(members.id, memberId))
+        .limit(1);
+      isAdmin = member?.isAdmin ?? false;
+    }
+    if (!isAdmin) {
+      res.status(404).json({ error: "Election not found" });
+      return;
+    }
   }
   const options = await db
     .select()

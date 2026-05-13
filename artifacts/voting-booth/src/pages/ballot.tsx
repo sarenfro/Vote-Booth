@@ -22,10 +22,10 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 
-function ElectionTally({ electionId, totalBallots, eligibleCount }: {
+function ElectionTally({ electionId, eligibleCount, showProgress }: {
   electionId: number;
-  totalBallots?: number;
   eligibleCount?: number | null;
+  showProgress?: boolean;
 }) {
   const { data: tally } = useGetElectionTally(electionId, {
     query: { enabled: true, queryKey: getGetElectionTallyQueryKey(electionId) },
@@ -42,7 +42,7 @@ function ElectionTally({ electionId, totalBallots, eligibleCount }: {
         <span className="text-muted-foreground">{tally.totalBallots} ballot{tally.totalBallots !== 1 ? "s" : ""} cast</span>
       </div>
 
-      {eligibleCount && (
+      {showProgress && eligibleCount && (
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>Quorum progress</span>
@@ -105,7 +105,7 @@ export function Ballot() {
 
   const hasVoted = hasVotedData?.hasVoted || submitted;
   const isClosed = election?.status === "closed";
-  const showTally = isClosed || hasVoted || (election?.showLiveProgress && hasVoted);
+  const showTally = isClosed || hasVoted;
 
   function toggleMulti(optionId: number) {
     setMultiSelections(prev =>
@@ -385,7 +385,7 @@ export function Ballot() {
         </Card>
       )}
 
-      {(isClosed || hasVoted || (election.showLiveProgress)) && (
+      {showTally && (
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg">
@@ -395,8 +395,8 @@ export function Ballot() {
           <CardContent>
             <ElectionTally
               electionId={election.id}
-              totalBallots={undefined}
               eligibleCount={election.eligibleVoterCount}
+              showProgress={isClosed || !!(election.showLiveProgress && hasVoted)}
             />
           </CardContent>
         </Card>
