@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { useMemberIdContext } from "@/hooks/use-member-id";
 import { useMe } from "@/hooks/use-me";
@@ -5,9 +6,22 @@ import { Input } from "@/components/ui/input";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { memberId, setMemberId } = useMemberIdContext();
-  const { data: me } = useMe(memberId);
+  const [inputValue, setInputValue] = useState(memberId);
+  const { data: me, isError, isFetching } = useMe(memberId);
+
   const isAdmin = me?.isAdmin ?? false;
   const isEc = me?.isEc ?? false;
+
+  useEffect(() => {
+    if (!memberId) setInputValue("");
+  }, [memberId]);
+
+  function commit() {
+    const trimmed = inputValue.trim();
+    setMemberId(trimmed);
+  }
+
+  const showError = !!memberId && !isFetching && isError;
 
   const [onAdmin] = useRoute("/admin");
   const [onEc] = useRoute("/ec");
@@ -28,14 +42,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-primary-foreground/80 hidden sm:inline-block">NetID:</span>
-              <Input
-                value={memberId}
-                onChange={(e) => setMemberId(e.target.value)}
-                placeholder="Enter NetID…"
-                className="w-32 h-8 bg-primary-foreground/10 border-primary-foreground/20 text-white placeholder:text-primary-foreground/50 focus-visible:ring-accent"
-              />
+            <div className="flex flex-col items-end gap-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-primary-foreground/80 hidden sm:inline-block">NetID:</span>
+                <Input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onBlur={commit}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); commit(); } }}
+                  placeholder="Enter NetID…"
+                  className={`w-32 h-8 bg-primary-foreground/10 border-primary-foreground/20 text-white placeholder:text-primary-foreground/50 focus-visible:ring-accent ${showError ? "border-red-400" : ""}`}
+                />
+              </div>
+              {showError && (
+                <span className="text-xs text-red-300">NetID not recognized</span>
+              )}
             </div>
           </div>
         </div>

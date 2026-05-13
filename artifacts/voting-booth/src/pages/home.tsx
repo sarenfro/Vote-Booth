@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Link, useSearch } from "wouter";
 import { format } from "date-fns";
 import { useMemberIdContext } from "@/hooks/use-member-id";
+import { useMe } from "@/hooks/use-me";
 
 export function Home() {
   const { memberId } = useMemberIdContext();
+  const { data: me, isError: meError, isFetching: meFetching } = useMe(memberId);
   const { data: elections, isLoading } = useListElections();
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
@@ -19,6 +21,12 @@ export function Home() {
         <p className="text-lg font-medium">Enter your NetID to access the voting booth.</p>
       </div>
     );
+  }
+
+  if (meFetching) return null;
+
+  if (meError || !me) {
+    return null;
   }
 
   if (isLoading) {
