@@ -19,6 +19,6 @@ export function useMe(memberId: string) {
       }
     },
     enabled: !!memberId,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }

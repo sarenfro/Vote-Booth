@@ -12,6 +12,15 @@ function getMemberId(req: Request): number | null {
   return isNaN(id) ? null : id;
 }
 
+// GET /api/members: list all members (id, name, email prefix, role flags) — no auth required.
+router.get("/members", async (_req: Request, res: Response) => {
+  const rows = await db
+    .select({ id: members.id, name: members.name, email: members.email, isAdmin: members.isAdmin, isEc: members.isEc })
+    .from(members)
+    .orderBy(members.name);
+  res.json(rows);
+});
+
 // GET /api/me: resolve X-Member-Id header to member identity + admin status.
 // Returns { memberId, isAdmin } or 401 if header is missing.
 router.get("/me", async (req: Request, res: Response) => {

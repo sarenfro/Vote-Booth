@@ -3,7 +3,11 @@ import { setCustomHeaders } from "@workspace/api-client-react";
 
 export function useMemberId() {
   const [memberId, setMemberId] = useState<string>(() => {
-    return localStorage.getItem("mbaa_member_id") || "";
+    const stored = localStorage.getItem("mbaa_member_id") || "";
+    if (stored) {
+      setCustomHeaders({ "X-Member-Id": stored });
+    }
+    return stored;
   });
 
   useEffect(() => {
