@@ -8,8 +8,18 @@ import { Layout } from "@/components/layout";
 import { Ballot } from "@/pages/ballot";
 import { EcDashboard } from "@/pages/ec-dashboard";
 import { Results } from "@/pages/results";
+import { useMemberId, MemberIdContext } from "@/hooks/use-member-id";
 
 const queryClient = new QueryClient();
+
+function AppWithMemberId({ children }: { children: React.ReactNode }) {
+  const [memberId, setMemberId] = useMemberId();
+  return (
+    <MemberIdContext.Provider value={{ memberId, setMemberId }}>
+      {children}
+    </MemberIdContext.Provider>
+  );
+}
 
 function Router() {
   return (
@@ -27,12 +37,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Layout>
-            <Router />
-          </Layout>
-        </WouterRouter>
-        <Toaster />
+        <AppWithMemberId>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Layout>
+              <Router />
+            </Layout>
+          </WouterRouter>
+          <Toaster />
+        </AppWithMemberId>
       </TooltipProvider>
     </QueryClientProvider>
   );

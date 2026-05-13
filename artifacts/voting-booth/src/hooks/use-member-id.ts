@@ -1,5 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { setCustomHeaders } from "@workspace/api-client-react";
+
+export const MemberIdContext = createContext<{
+  memberId: string;
+  setMemberId: (id: string) => void;
+}>({ memberId: "", setMemberId: () => {} });
 
 export function useMemberId() {
   const [memberId, setMemberId] = useState<string>("");
@@ -13,4 +18,8 @@ export function useMemberId() {
   }, [memberId]);
 
   return [memberId, setMemberId] as const;
+}
+
+export function useMemberIdContext() {
+  return useContext(MemberIdContext);
 }

@@ -4,12 +4,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useSearch } from "wouter";
 import { format } from "date-fns";
+import { useMemberIdContext } from "@/hooks/use-member-id";
 
 export function Home() {
+  const { memberId } = useMemberIdContext();
   const { data: elections, isLoading } = useListElections();
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
   const isAdmin = searchParams.get("admin") === "true";
+
+  if (!memberId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center text-muted-foreground">
+        <p className="text-lg font-medium">Enter your NetID to access the voting booth.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

@@ -1,10 +1,10 @@
 import { Link, useRoute } from "wouter";
-import { useMemberId } from "@/hooks/use-member-id";
+import { useMemberIdContext } from "@/hooks/use-member-id";
 import { useMe } from "@/hooks/use-me";
 import { Input } from "@/components/ui/input";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [memberId, setMemberId] = useMemberId();
+  const { memberId, setMemberId } = useMemberIdContext();
   const { data: me } = useMe(memberId);
   const isAdmin = me?.isAdmin ?? false;
   const isEc = me?.isEc ?? false;
