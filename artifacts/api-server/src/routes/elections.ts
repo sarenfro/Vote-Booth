@@ -24,11 +24,11 @@ function formatElection(row: typeof elections.$inferSelect) {
 // NOTE: This is a placeholder for a real auth system. Phase 1 uses a plain
 // integer header. A proper auth system (e.g. session, JWT) ships in a later
 // phase and will enforce @uw.edu email restriction.
-function getMemberId(req: Request): number | null {
+function getMemberId(req: Request): string | null {
   const raw = req.headers["x-member-id"];
   if (!raw || Array.isArray(raw)) return null;
-  const id = parseInt(raw, 10);
-  return isNaN(id) ? null : id;
+  const id = raw.trim();
+  return id || null;
 }
 
 async function requireAdmin(req: Request, res: Response): Promise<boolean> {

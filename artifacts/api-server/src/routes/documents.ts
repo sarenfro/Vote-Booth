@@ -6,14 +6,14 @@ import { CreateDocumentBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-function getMemberId(req: Request): number | null {
+function getMemberId(req: Request): string | null {
   const raw = req.headers["x-member-id"];
   if (!raw || Array.isArray(raw)) return null;
-  const id = parseInt(raw, 10);
-  return isNaN(id) ? null : id;
+  const id = raw.trim();
+  return id || null;
 }
 
-async function requireEc(req: Request, res: Response): Promise<number | null> {
+async function requireEc(req: Request, res: Response): Promise<string | null> {
   const memberId = getMemberId(req);
   if (!memberId) {
     res.status(401).json({ error: "X-Member-Id header required" });
