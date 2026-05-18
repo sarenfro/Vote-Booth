@@ -558,7 +558,7 @@ function ElectionCard({
             Close Election
           </Button>
         )}
-        {election.status === "draft" && !isEditing && (
+        {(election.status === "draft" || election.status === "closed") && !isEditing && (
           confirmDelete ? (
             <span className="flex items-center gap-1.5 ml-auto">
               <span className="text-xs text-muted-foreground">Delete this initiative?</span>

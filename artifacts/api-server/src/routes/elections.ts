@@ -380,8 +380,8 @@ router.delete("/elections/:id", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Election not found" });
     return;
   }
-  if (existing.status !== "draft") {
-    res.status(409).json({ error: "Only draft elections can be deleted. Close the election first if needed." });
+  if (existing.status === "open") {
+    res.status(409).json({ error: "Close the election before deleting it." });
     return;
   }
   await db.delete(electionOptions).where(eq(electionOptions.electionId, id));
