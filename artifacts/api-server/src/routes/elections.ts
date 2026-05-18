@@ -366,6 +366,29 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
   res.json({ ...formatElection(updated), options: opts });
 });
 
+// DELETE /api/elections/:id: delete an election and all related data (admin only)
+// Only draft elections can be deleted; open/closed elections are protected.
+router.delete("/elections/:id", async (req: Request, res: Response) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id as string, 10);
+  const [existing] = await db
+    .select()
+    .from(elections)
+    .where(eq(elections.id, id))
+    .limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Election not found" });
+    return;
+  }
+  if (existing.status !== "draft") {
+    res.status(409).json({ error: "Only draft elections can be deleted. Close the election first if needed." });
+    return;
+  }
+  await db.delete(electionOptions).where(eq(electionOptions.electionId, id));
+  await db.delete(elections).where(eq(elections.id, id));
+  res.status(204).end();
+});
+
 // POST /api/elections/:id/open: transition draft to open (admin only)
 router.post("/elections/:id/open", async (req: Request, res: Response) => {
   if (!(await requireAdmin(req, res))) return;

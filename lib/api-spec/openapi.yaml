@@ -87,6 +87,25 @@ paths:
                 $ref: "#/components/schemas/ElectionWithOptions"
         "404":
           description: Not found
+    delete:
+      operationId: deleteElection
+      tags: [elections]
+      summary: Delete a draft election (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden (not an admin)
+        "404":
+          description: Not found
+        "409":
+          description: Election is not in draft status
     patch:
       operationId: updateElection
       tags: [elections]

@@ -110,6 +110,13 @@ export const GetElectionResponse = zod
   );
 
 /**
+ * @summary Delete a draft election (admin only)
+ */
+export const DeleteElectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary Update election (admin, draft only)
  */
 export const UpdateElectionParams = zod.object({

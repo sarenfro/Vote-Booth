@@ -6,6 +6,7 @@ import {
   useOpenElection,
   useCloseElection,
   useUpdateElection,
+  useDeleteElection,
   getListElectionsQueryKey,
   useListDocuments,
   useCreateDocument,
@@ -135,6 +136,7 @@ export function EcDashboard() {
   const openElection = useOpenElection();
   const closeElection = useCloseElection();
   const updateElection = useUpdateElection();
+  const deleteElection = useDeleteElection();
 
   // Create form state
   const [showForm, setShowForm] = useState(false);
@@ -209,6 +211,13 @@ export function EcDashboard() {
   }
 
   function cancelEdit() { setEditingId(null); setEditError(""); }
+
+  function handleDelete(id: number) {
+    deleteElection.mutate(
+      { id },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) },
+    );
+  }
 
   function handleUpdate(id: number) {
     if (!editTitle.trim()) { setEditError("Title is required."); return; }
@@ -398,6 +407,8 @@ export function EcDashboard() {
                       onClose={handleClose}
                       openPending={openElection.isPending}
                       closePending={closeElection.isPending}
+                      onDelete={handleDelete}
+                      deletePending={deleteElection.isPending}
                     />
                   ))}
                 </div>
@@ -438,6 +449,8 @@ interface ElectionCardProps {
   onClose: (id: number) => void;
   openPending: boolean;
   closePending: boolean;
+  onDelete: (id: number) => void;
+  deletePending: boolean;
 }
 
 function ElectionCard({
@@ -445,8 +458,10 @@ function ElectionCard({
   onEditTitle, onEditDescription, onEditQuorum, onEditEligible,
   onStartEdit, onCancelEdit, onSaveEdit, savePending,
   onOpen, onClose, openPending, closePending,
+  onDelete, deletePending,
 }: ElectionCardProps) {
   const [showDocs, setShowDocs] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isEditing = editingId === election.id;
 
   return (
@@ -513,7 +528,7 @@ function ElectionCard({
         </CardContent>
       )}
 
-      <CardFooter className="pt-2 pb-3 gap-2">
+      <CardFooter className="pt-2 pb-3 gap-2 flex-wrap">
         <Link href={`/${election.id}`}>
           <Button variant="outline" size="sm">View ballot</Button>
         </Link>
@@ -542,6 +557,31 @@ function ElectionCard({
           >
             Close Election
           </Button>
+        )}
+        {election.status === "draft" && !isEditing && (
+          confirmDelete ? (
+            <span className="flex items-center gap-1.5 ml-auto">
+              <span className="text-xs text-muted-foreground">Delete this initiative?</span>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => { onDelete(election.id); setConfirmDelete(false); }}
+                disabled={deletePending}
+              >
+                {deletePending ? "Deleting…" : "Yes, delete"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto text-muted-foreground hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete
+            </Button>
+          )
         )}
       </CardFooter>
     </Card>

@@ -367,6 +367,90 @@ export function useGetElection<
 }
 
 /**
+ * @summary Delete a draft election (admin only)
+ */
+export const getDeleteElectionUrl = (id: number) => {
+  return `/api/elections/${id}`;
+};
+
+export const deleteElection = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteElectionUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteElectionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteElection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteElection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteElection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteElection>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteElection(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteElectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteElection>>
+>;
+
+export type DeleteElectionMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a draft election (admin only)
+ */
+export const useDeleteElection = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteElection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteElection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteElectionMutationOptions(options));
+};
+
+/**
  * @summary Update election (admin, draft only)
  */
 export const getUpdateElectionUrl = (id: number) => {
