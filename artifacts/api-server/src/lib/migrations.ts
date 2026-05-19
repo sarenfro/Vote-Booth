@@ -17,6 +17,40 @@ const DROP_LEGACY_CAST_VOTE_SQL = `
 DROP FUNCTION IF EXISTS cast_vote(integer, integer, jsonb);
 `;
 
+// Pre-change ballots were inserted without member_id. Because each vote ran
+// inside a single transaction, the matching voter_log row and ballot row
+// share the same (election_id, timestamp) inside that election — and even
+// when timestamps collide, ordering by (timestamp, id) is the same on both
+// sides because the inserts ran sequentially. We pair them by rank within
+// election to recover the identity → choice linkage. Idempotent: only
+// touches ballots where member_id IS NULL and only pairs them with
+// voter_log rows whose member has no ballot yet.
+const BACKFILL_BALLOT_MEMBER_SQL = `
+WITH unmatched_log AS (
+  SELECT vl.id, vl.election_id, vl.member_id, vl.voted_at,
+         ROW_NUMBER() OVER (PARTITION BY vl.election_id ORDER BY vl.voted_at, vl.id) AS rn
+  FROM voter_log vl
+  WHERE NOT EXISTS (
+    SELECT 1 FROM ballots b
+    WHERE b.election_id = vl.election_id
+      AND b.member_id   = vl.member_id
+  )
+),
+unmatched_ballots AS (
+  SELECT id, election_id, submitted_at,
+         ROW_NUMBER() OVER (PARTITION BY election_id ORDER BY submitted_at, id) AS rn
+  FROM ballots
+  WHERE member_id IS NULL
+)
+UPDATE ballots
+SET member_id = ul.member_id
+FROM unmatched_ballots ub
+JOIN unmatched_log ul
+  ON ul.election_id = ub.election_id
+ AND ul.rn          = ub.rn
+WHERE ballots.id = ub.id;
+`;
+
 const VOTING_FUNCTIONS_SQL = `
 CREATE OR REPLACE FUNCTION cast_vote(
   p_election_id integer,
@@ -103,5 +137,9 @@ export async function runMigrations() {
   await pool.query(ADD_BALLOT_MEMBER_SQL);
   await pool.query(DROP_LEGACY_CAST_VOTE_SQL);
   await pool.query(VOTING_FUNCTIONS_SQL);
+  const backfill = await pool.query(BACKFILL_BALLOT_MEMBER_SQL);
+  if (backfill.rowCount && backfill.rowCount > 0) {
+    logger.info({ count: backfill.rowCount }, "Backfilled legacy anonymous ballots with voter identities");
+  }
   logger.info("DB migrations applied");
 }
