@@ -290,7 +290,7 @@ router.get("/elections/:id/voter-log", async (req: Request, res: Response) => {
     .orderBy(desc(voterLog.votedAt));
 
   const formatChoice = (payload: unknown): string => {
-    if (!payload || typeof payload !== "object") return "—";
+    if (!payload || typeof payload !== "object") return "(ballot cast before voter linking was enabled)";
     const p = payload as Record<string, unknown>;
     switch (election.voteType) {
       case "yes_no":

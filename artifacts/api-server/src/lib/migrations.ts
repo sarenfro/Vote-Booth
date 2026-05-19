@@ -13,6 +13,10 @@ CREATE INDEX IF NOT EXISTS ballots_election_member_idx
   ON ballots (election_id, member_id);
 `;
 
+const DROP_LEGACY_CAST_VOTE_SQL = `
+DROP FUNCTION IF EXISTS cast_vote(integer, integer, jsonb);
+`;
+
 const VOTING_FUNCTIONS_SQL = `
 CREATE OR REPLACE FUNCTION cast_vote(
   p_election_id integer,
@@ -97,6 +101,7 @@ $$;
 export async function runMigrations() {
   await pool.query(ADD_RESULTS_VISIBLE_SQL);
   await pool.query(ADD_BALLOT_MEMBER_SQL);
+  await pool.query(DROP_LEGACY_CAST_VOTE_SQL);
   await pool.query(VOTING_FUNCTIONS_SQL);
   logger.info("DB migrations applied");
 }
