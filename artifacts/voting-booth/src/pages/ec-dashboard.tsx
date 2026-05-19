@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListElections,
@@ -133,20 +133,101 @@ function DocumentUploader({ electionId }: { electionId: number }) {
   );
 }
 
+const VOTER_LOG_PW_KEY = "voter-log-password";
+
 function VoterLogSection({ electionId }: { electionId: number }) {
-  const { data: log, isLoading } = useGetVoterLog(electionId);
+  const [password, setPassword] = useState<string>(
+    () => sessionStorage.getItem(VOTER_LOG_PW_KEY) ?? "",
+  );
+  const [pendingPassword, setPendingPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+
+  const { data: log, isLoading, error } = useGetVoterLog(electionId, {
+    query: { enabled: !!password, retry: false },
+    request: { headers: password ? { "X-Voter-Log-Password": password } : undefined },
+  });
+
+  const status = (error as { status?: number } | null)?.status;
+
+  useEffect(() => {
+    if (status === 401) {
+      setAuthError("Incorrect password.");
+      setPassword("");
+      sessionStorage.removeItem(VOTER_LOG_PW_KEY);
+    }
+  }, [status]);
+
+  function handleUnlock() {
+    const pw = pendingPassword.trim();
+    if (!pw) {
+      setAuthError("Enter the voter log password.");
+      return;
+    }
+    setAuthError("");
+    sessionStorage.setItem(VOTER_LOG_PW_KEY, pw);
+    setPassword(pw);
+    setPendingPassword("");
+  }
+
+  function handleLock() {
+    sessionStorage.removeItem(VOTER_LOG_PW_KEY);
+    setPassword("");
+    setAuthError("");
+  }
+
+  if (!password) {
+    return (
+      <div className="space-y-2 rounded-md border border-border/60 bg-muted/30 px-3 py-3">
+        <p className="text-xs font-medium text-foreground">Voter log is password protected</p>
+        <p className="text-xs text-muted-foreground">
+          Enter the EC voter-log password to view per-voter ballots.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            type="password"
+            value={pendingPassword}
+            onChange={e => setPendingPassword(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleUnlock(); }}
+            placeholder="Voter log password"
+            className="h-8 text-xs"
+            data-testid={`input-voter-log-password-${electionId}`}
+          />
+          <Button size="sm" onClick={handleUnlock} data-testid={`button-unlock-voter-log-${electionId}`}>
+            Unlock
+          </Button>
+        </div>
+        {authError && <p className="text-xs text-destructive">{authError}</p>}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <p className="text-xs text-muted-foreground">Loading voter log…</p>;
   }
   if (!log || log.length === 0) {
-    return <p className="text-xs text-muted-foreground">No ballots cast yet.</p>;
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">No ballots cast yet.</p>
+        <button onClick={handleLock} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
+          Lock voter log
+        </button>
+      </div>
+    );
   }
   return (
     <div className="space-y-1">
-      <p className="text-xs text-muted-foreground mb-2">
-        {log.length} ballot{log.length !== 1 ? "s" : ""} cast — identities and choices visible to EC/admins only.
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-xs text-muted-foreground">
+          {log.length} ballot{log.length !== 1 ? "s" : ""} cast — identities and choices visible to EC/admins only.
+        </p>
+        <button
+          onClick={handleLock}
+          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+          data-testid={`button-lock-voter-log-${electionId}`}
+        >
+          Lock
+        </button>
+      </div>
       <div className="max-h-80 overflow-y-auto border border-border/60 rounded-md divide-y divide-border/40">
         {log.map((entry) => (
           <div

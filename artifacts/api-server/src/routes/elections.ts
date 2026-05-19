@@ -244,6 +244,16 @@ router.post("/elections/:id/results-visibility", async (req: Request, res: Respo
 // summary so the EC dashboard can display per-voter results.
 router.get("/elections/:id/voter-log", async (req: Request, res: Response) => {
   if (!(await requireEcOrAdmin(req, res))) return;
+  const expected = process.env.VOTER_LOG_PASSWORD;
+  if (!expected) {
+    res.status(500).json({ error: "Voter log password is not configured on the server" });
+    return;
+  }
+  const provided = req.header("x-voter-log-password");
+  if (provided !== expected) {
+    res.status(401).json({ error: "Invalid voter log password" });
+    return;
+  }
   const electionId = parseInt(req.params.id as string, 10);
 
   const [election] = await db
