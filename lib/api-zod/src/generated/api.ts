@@ -216,6 +216,22 @@ export const GetElectionTallyResponse = zod.object({
 });
 
 /**
+ * Returns the list of members who have cast a ballot, with timestamps. Does NOT reveal vote contents.
+ * @summary Get voter log for an election (EC/admin only)
+ */
+export const GetVoterLogParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetVoterLogResponseItem = zod.object({
+  memberId: zod.string(),
+  name: zod.string().nullish(),
+  email: zod.string().nullish(),
+  votedAt: zod.coerce.date(),
+});
+export const GetVoterLogResponse = zod.array(GetVoterLogResponseItem);
+
+/**
  * @summary Check if the current member (X-Member-Id header) has voted
  */
 export const HasVotedParams = zod.object({

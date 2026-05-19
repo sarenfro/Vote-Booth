@@ -49,6 +49,24 @@ async function requireAdmin(req: Request, res: Response): Promise<boolean> {
   return true;
 }
 
+async function requireEcOrAdmin(req: Request, res: Response): Promise<boolean> {
+  const memberId = getMemberId(req);
+  if (!memberId) {
+    res.status(401).json({ error: "X-Member-Id header required" });
+    return false;
+  }
+  const [member] = await db
+    .select({ isAdmin: members.isAdmin, isEc: members.isEc })
+    .from(members)
+    .where(eq(members.id, memberId))
+    .limit(1);
+  if (!member?.isAdmin && !member?.isEc) {
+    res.status(403).json({ error: "EC or admin access required" });
+    return false;
+  }
+  return true;
+}
+
 // GET /api/elections: list elections.
 // Admins (valid X-Member-Id with isAdmin = true) see all statuses including drafts.
 // Non-admins see open and closed elections only.
@@ -181,6 +199,25 @@ router.get("/elections/:id/tally", async (req: Request, res: Response) => {
   }));
 
   res.json({ electionId, totalBallots, quorumMet, options });
+});
+
+// GET /api/elections/:id/voter-log: list members who voted (EC/admin only).
+// Returns identity + timestamp only; does NOT reveal vote contents.
+router.get("/elections/:id/voter-log", async (req: Request, res: Response) => {
+  if (!(await requireEcOrAdmin(req, res))) return;
+  const electionId = parseInt(req.params.id as string, 10);
+  const rows = await db
+    .select({
+      memberId: voterLog.memberId,
+      name: members.name,
+      email: members.email,
+      votedAt: voterLog.votedAt,
+    })
+    .from(voterLog)
+    .leftJoin(members, eq(members.id, voterLog.memberId))
+    .where(eq(voterLog.electionId, electionId))
+    .orderBy(desc(voterLog.votedAt));
+  res.json(rows);
 });
 
 // GET /api/elections/:id/has-voted: check voter_log for the current member.

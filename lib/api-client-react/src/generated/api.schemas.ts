@@ -157,6 +157,13 @@ export interface TallyResult {
   options: TallyOption[];
 }
 
+export interface VoterLogEntry {
+  memberId: string;
+  name?: string | null;
+  email?: string | null;
+  votedAt: string;
+}
+
 export interface HasVotedResponse {
   hasVoted: boolean;
 }

@@ -29,6 +29,7 @@ import type {
   RequestUploadUrlResponse,
   TallyResult,
   UpdateElectionBody,
+  VoterLogEntry,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -705,6 +706,94 @@ export function useGetElectionTally<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetElectionTallyQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the list of members who have cast a ballot, with timestamps. Does NOT reveal vote contents.
+ * @summary Get voter log for an election (EC/admin only)
+ */
+export const getGetVoterLogUrl = (id: number) => {
+  return `/api/elections/${id}/voter-log`;
+};
+
+export const getVoterLog = async (
+  id: number,
+  options?: RequestInit,
+): Promise<VoterLogEntry[]> => {
+  return customFetch<VoterLogEntry[]>(getGetVoterLogUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetVoterLogQueryKey = (id: number) => {
+  return [`/api/elections/${id}/voter-log`] as const;
+};
+
+export const getGetVoterLogQueryOptions = <
+  TData = Awaited<ReturnType<typeof getVoterLog>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getVoterLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetVoterLogQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getVoterLog>>> = ({
+    signal,
+  }) => getVoterLog(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getVoterLog>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetVoterLogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getVoterLog>>
+>;
+export type GetVoterLogQueryError = ErrorType<void>;
+
+/**
+ * @summary Get voter log for an election (EC/admin only)
+ */
+
+export function useGetVoterLog<
+  TData = Awaited<ReturnType<typeof getVoterLog>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getVoterLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetVoterLogQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

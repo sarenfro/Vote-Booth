@@ -184,6 +184,30 @@ paths:
         "404":
           description: Not found
 
+  /elections/{id}/voter-log:
+    get:
+      operationId: getVoterLog
+      tags: [elections]
+      summary: Get voter log for an election (EC/admin only)
+      description: Returns the list of members who have cast a ballot, with timestamps. Does NOT reveal vote contents.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Voter log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VoterLogEntry"
+        "403":
+          description: Forbidden (not EC or admin)
+
   /elections/{id}/has-voted:
     get:
       operationId: hasVoted
@@ -598,6 +622,22 @@ components:
         - electionId
         - totalBallots
         - options
+
+    VoterLogEntry:
+      type: object
+      required: [memberId, votedAt]
+      properties:
+        memberId:
+          type: string
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        votedAt:
+          type: string
+          format: date-time
 
     HasVotedResponse:
       type: object

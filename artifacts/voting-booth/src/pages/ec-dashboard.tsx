@@ -13,8 +13,10 @@ import {
   useDeleteDocument,
   useRequestUploadUrl,
   getListDocumentsQueryKey,
+  useGetVoterLog,
   type ElectionVoteType,
 } from "@workspace/api-client-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -125,6 +127,45 @@ function DocumentUploader({ electionId }: { electionId: number }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function VoterLogSection({ electionId }: { electionId: number }) {
+  const { data: log, isLoading } = useGetVoterLog(electionId);
+
+  if (isLoading) {
+    return <p className="text-xs text-muted-foreground">Loading voter log…</p>;
+  }
+  if (!log || log.length === 0) {
+    return <p className="text-xs text-muted-foreground">No ballots cast yet.</p>;
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground mb-2">
+        {log.length} ballot{log.length !== 1 ? "s" : ""} cast (identities visible to EC/admins only — vote contents remain anonymous).
+      </p>
+      <div className="max-h-64 overflow-y-auto border border-border/60 rounded-md divide-y divide-border/40">
+        {log.map((entry) => (
+          <div
+            key={`${entry.memberId}-${entry.votedAt}`}
+            className="flex items-center justify-between gap-3 px-3 py-2 text-xs"
+          >
+            <div className="min-w-0">
+              <div className="font-medium text-foreground truncate">
+                {entry.name ?? entry.memberId}
+              </div>
+              <div className="text-muted-foreground truncate">
+                {entry.memberId}
+                {entry.email ? ` · ${entry.email}` : ""}
+              </div>
+            </div>
+            <div className="text-muted-foreground whitespace-nowrap shrink-0">
+              {format(new Date(entry.votedAt), "MMM d, yyyy h:mm:ss a")}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -461,6 +502,7 @@ function ElectionCard({
   onDelete, deletePending,
 }: ElectionCardProps) {
   const [showDocs, setShowDocs] = useState(false);
+  const [showVoterLog, setShowVoterLog] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isEditing = editingId === election.id;
 
@@ -513,16 +555,31 @@ function ElectionCard({
       )}
 
       {!isEditing && (
-        <CardContent className="pb-2 pt-0">
-          <button
-            onClick={() => setShowDocs(v => !v)}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-          >
-            {showDocs ? "Hide documents" : "Manage documents"}
-          </button>
+        <CardContent className="pb-2 pt-0 space-y-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <button
+              onClick={() => setShowDocs(v => !v)}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              {showDocs ? "Hide documents" : "Manage documents"}
+            </button>
+            {election.status !== "draft" && (
+              <button
+                onClick={() => setShowVoterLog(v => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              >
+                {showVoterLog ? "Hide voter log" : "View voter log"}
+              </button>
+            )}
+          </div>
           {showDocs && (
-            <div className="mt-3">
+            <div>
               <DocumentUploader electionId={election.id} />
+            </div>
+          )}
+          {showVoterLog && election.status !== "draft" && (
+            <div>
+              <VoterLogSection electionId={election.id} />
             </div>
           )}
         </CardContent>
