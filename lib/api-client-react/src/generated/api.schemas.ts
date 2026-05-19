@@ -49,6 +49,7 @@ export interface Election {
   quorumCount?: number | null;
   eligibleVoterCount?: number | null;
   showLiveProgress: boolean;
+  resultsVisible?: boolean;
   maxSelections?: number | null;
   status: ElectionStatus;
   startsAt?: string | null;
@@ -99,6 +100,7 @@ export interface CreateElectionBody {
   quorumCount?: number | null;
   eligibleVoterCount?: number | null;
   showLiveProgress: boolean;
+  resultsVisible?: boolean;
   maxSelections?: number | null;
   startsAt?: string | null;
   endsAt?: string | null;
@@ -199,3 +201,7 @@ export interface BallotDocument {
   uploadedBy?: number | null;
   createdAt: string;
 }
+
+export type SetResultsVisibilityBody = {
+  visible: boolean;
+};

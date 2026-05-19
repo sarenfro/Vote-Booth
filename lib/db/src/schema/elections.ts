@@ -42,6 +42,7 @@ export const elections = pgTable("elections", {
   quorumCount: integer("quorum_count"),
   eligibleVoterCount: integer("eligible_voter_count"),
   showLiveProgress: boolean("show_live_progress").notNull().default(true),
+  resultsVisible: boolean("results_visible").notNull().default(false),
   maxSelections: integer("max_selections"),
   status: electionStatusEnum("status").notNull().default("draft"),
   startsAt: timestamp("starts_at", { withTimezone: true }),

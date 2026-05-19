@@ -184,6 +184,38 @@ paths:
         "404":
           description: Not found
 
+  /elections/{id}/results-visibility:
+    post:
+      operationId: setResultsVisibility
+      tags: [elections]
+      summary: Show or hide vote results (admin only)
+      description: Toggles whether tally results are visible to non-EC users on the ballot and public results pages.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visible]
+              properties:
+                visible:
+                  type: boolean
+      responses:
+        "200":
+          description: Visibility updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Election"
+        "403":
+          description: Forbidden (not an admin)
+
   /elections/{id}/voter-log:
     get:
       operationId: getVoterLog
@@ -423,6 +455,8 @@ components:
           nullable: true
         showLiveProgress:
           type: boolean
+        resultsVisible:
+          type: boolean
         maxSelections:
           type: integer
           nullable: true
@@ -509,6 +543,8 @@ components:
           type: integer
           nullable: true
         showLiveProgress:
+          type: boolean
+        resultsVisible:
           type: boolean
         maxSelections:
           type: integer

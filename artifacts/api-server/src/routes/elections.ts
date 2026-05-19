@@ -173,13 +173,29 @@ router.post("/elections/:id/vote", async (req: Request, res: Response) => {
 router.get("/elections/:id/tally", async (req: Request, res: Response) => {
   const electionId = parseInt(req.params.id as string, 10);
   const [election] = await db
-    .select({ quorumCount: elections.quorumCount })
+    .select({ quorumCount: elections.quorumCount, resultsVisible: elections.resultsVisible })
     .from(elections)
     .where(eq(elections.id, electionId))
     .limit(1);
   if (!election) {
     res.status(404).json({ error: "Election not found" });
     return;
+  }
+  if (!election.resultsVisible) {
+    const memberId = getMemberId(req);
+    let allowed = false;
+    if (memberId) {
+      const [member] = await db
+        .select({ isAdmin: members.isAdmin, isEc: members.isEc })
+        .from(members)
+        .where(eq(members.id, memberId))
+        .limit(1);
+      allowed = !!(member?.isAdmin || member?.isEc);
+    }
+    if (!allowed) {
+      res.status(403).json({ error: "Results have not been released yet" });
+      return;
+    }
   }
   const { rows } = await pool.query<{
     option_id: number | null;
@@ -199,6 +215,27 @@ router.get("/elections/:id/tally", async (req: Request, res: Response) => {
   }));
 
   res.json({ electionId, totalBallots, quorumMet, options });
+});
+
+// POST /api/elections/:id/results-visibility: show/hide tally to non-EC (admin only).
+router.post("/elections/:id/results-visibility", async (req: Request, res: Response) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id as string, 10);
+  const { visible } = req.body as { visible?: boolean };
+  if (typeof visible !== "boolean") {
+    res.status(400).json({ error: "visible (boolean) is required" });
+    return;
+  }
+  const [updated] = await db
+    .update(elections)
+    .set({ resultsVisible: visible })
+    .where(eq(elections.id, id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Election not found" });
+    return;
+  }
+  res.json(formatElection(updated));
 });
 
 // GET /api/elections/:id/voter-log: list members who voted (EC/admin only).

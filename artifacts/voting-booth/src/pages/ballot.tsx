@@ -105,7 +105,8 @@ export function Ballot() {
 
   const hasVoted = hasVotedData?.hasVoted || submitted;
   const isClosed = election?.status === "closed";
-  const showTally = isClosed || hasVoted;
+  const resultsVisible = !!election?.resultsVisible;
+  const showTally = resultsVisible && (isClosed || hasVoted);
   const canShowForm =
     election?.status === "open" && !hasVoted && !hasVotedLoading;
 
@@ -223,6 +224,12 @@ export function Ballot() {
       {hasVoted && (
         <div className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-3 text-sm text-primary font-medium">
           Your ballot has been recorded. Thank you for participating.
+        </div>
+      )}
+
+      {hasVoted && !resultsVisible && (
+        <div className="bg-muted/40 border border-border rounded-lg px-4 py-3 text-sm text-muted-foreground">
+          Results will be available once the EC releases them.
         </div>
       )}
 

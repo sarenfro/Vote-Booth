@@ -9,9 +9,10 @@ function StatusBadge({ status }: { status: string }) {
   return null;
 }
 
-function ElectionResult({ election }: { election: { id: number; title: string; status: string; voteType: string; eligibleVoterCount?: number | null; description?: string | null } }) {
+function ElectionResult({ election }: { election: { id: number; title: string; status: string; voteType: string; eligibleVoterCount?: number | null; description?: string | null; resultsVisible?: boolean } }) {
+  const resultsVisible = !!election.resultsVisible;
   const { data: tally } = useGetElectionTally(election.id, {
-    query: { enabled: election.status === "closed" },
+    query: { enabled: election.status === "closed" && resultsVisible },
   });
   const { data: docs } = useListDocuments(election.id);
 
@@ -43,7 +44,11 @@ function ElectionResult({ election }: { election: { id: number; title: string; s
       </CardHeader>
 
       <CardContent className="space-y-3 pt-0">
-        {!tally ? (
+        {!resultsVisible ? (
+          <p className="text-sm text-muted-foreground">
+            Results are not yet released by the EC.
+          </p>
+        ) : !tally ? (
           <p className="text-sm text-muted-foreground">
             {election.status === "open" ? "Results visible after closing." : "No tally available yet."}
           </p>

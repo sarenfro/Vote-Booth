@@ -31,6 +31,7 @@ export const ListElectionsResponseItem = zod.object({
   quorumCount: zod.number().nullish(),
   eligibleVoterCount: zod.number().nullish(),
   showLiveProgress: zod.boolean(),
+  resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
@@ -56,6 +57,7 @@ export const CreateElectionBody = zod.object({
   quorumCount: zod.number().nullish(),
   eligibleVoterCount: zod.number().nullish(),
   showLiveProgress: zod.boolean(),
+  resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -88,6 +90,7 @@ export const GetElectionResponse = zod
     quorumCount: zod.number().nullish(),
     eligibleVoterCount: zod.number().nullish(),
     showLiveProgress: zod.boolean(),
+    resultsVisible: zod.boolean().optional(),
     maxSelections: zod.number().nullish(),
     status: zod.enum(["draft", "open", "closed"]),
     startsAt: zod.coerce.date().nullish(),
@@ -157,6 +160,7 @@ export const UpdateElectionResponse = zod
     quorumCount: zod.number().nullish(),
     eligibleVoterCount: zod.number().nullish(),
     showLiveProgress: zod.boolean(),
+    resultsVisible: zod.boolean().optional(),
     maxSelections: zod.number().nullish(),
     status: zod.enum(["draft", "open", "closed"]),
     startsAt: zod.coerce.date().nullish(),
@@ -216,6 +220,40 @@ export const GetElectionTallyResponse = zod.object({
 });
 
 /**
+ * Toggles whether tally results are visible to non-EC users on the ballot and public results pages.
+ * @summary Show or hide vote results (admin only)
+ */
+export const SetResultsVisibilityParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SetResultsVisibilityBody = zod.object({
+  visible: zod.boolean(),
+});
+
+export const SetResultsVisibilityResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  voteType: zod.enum(["yes_no", "plurality", "ranked_choice", "multi_select"]),
+  thresholdType: zod
+    .enum(["simple_majority", "two_thirds", "three_quarters", "custom"])
+    .nullish(),
+  thresholdPercent: zod.number().nullish(),
+  quorumCount: zod.number().nullish(),
+  eligibleVoterCount: zod.number().nullish(),
+  showLiveProgress: zod.boolean(),
+  resultsVisible: zod.boolean().optional(),
+  maxSelections: zod.number().nullish(),
+  status: zod.enum(["draft", "open", "closed"]),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  closedAt: zod.coerce.date().nullish(),
+});
+
+/**
  * Returns the list of members who have cast a ballot, with timestamps. Does NOT reveal vote contents.
  * @summary Get voter log for an election (EC/admin only)
  */
@@ -262,6 +300,7 @@ export const OpenElectionResponse = zod.object({
   quorumCount: zod.number().nullish(),
   eligibleVoterCount: zod.number().nullish(),
   showLiveProgress: zod.boolean(),
+  resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
@@ -291,6 +330,7 @@ export const CloseElectionResponse = zod.object({
   quorumCount: zod.number().nullish(),
   eligibleVoterCount: zod.number().nullish(),
   showLiveProgress: zod.boolean(),
+  resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),

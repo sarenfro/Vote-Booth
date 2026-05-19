@@ -1,6 +1,11 @@
 import { pool } from "@workspace/db";
 import { logger } from "./logger";
 
+const ADD_RESULTS_VISIBLE_SQL = `
+ALTER TABLE elections
+  ADD COLUMN IF NOT EXISTS results_visible boolean NOT NULL DEFAULT false;
+`;
+
 const VOTING_FUNCTIONS_SQL = `
 CREATE OR REPLACE FUNCTION cast_vote(
   p_election_id integer,
@@ -83,6 +88,7 @@ $$;
 `;
 
 export async function runMigrations() {
+  await pool.query(ADD_RESULTS_VISIBLE_SQL);
   await pool.query(VOTING_FUNCTIONS_SQL);
   logger.info("DB migrations applied");
 }

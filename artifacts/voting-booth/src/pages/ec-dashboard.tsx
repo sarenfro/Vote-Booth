@@ -14,6 +14,8 @@ import {
   useRequestUploadUrl,
   getListDocumentsQueryKey,
   useGetVoterLog,
+  useSetResultsVisibility,
+  useGetElectionTally,
   type ElectionVoteType,
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
@@ -471,6 +473,7 @@ interface ElectionCardProps {
     eligibleVoterCount?: number | null;
     quorumCount?: number | null;
     description?: string | null;
+    resultsVisible?: boolean;
   };
   editingId: number | null;
   editTitle: string;
@@ -503,8 +506,18 @@ function ElectionCard({
 }: ElectionCardProps) {
   const [showDocs, setShowDocs] = useState(false);
   const [showVoterLog, setShowVoterLog] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isEditing = editingId === election.id;
+  const queryClient = useQueryClient();
+  const setVisibility = useSetResultsVisibility({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() });
+      },
+    },
+  });
+  const resultsVisible = !!election.resultsVisible;
 
   return (
     <Card data-testid={`card-election-${election.id}`} className="shadow-sm">
@@ -571,7 +584,45 @@ function ElectionCard({
                 {showVoterLog ? "Hide voter log" : "View voter log"}
               </button>
             )}
+            {election.status !== "draft" && (
+              <button
+                onClick={() => setShowPreview(v => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              >
+                {showPreview ? "Hide results preview" : "Preview results"}
+              </button>
+            )}
           </div>
+          {election.status !== "draft" && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+              <div className="text-xs">
+                <p className="font-medium text-foreground">
+                  Results are {resultsVisible ? "visible to voters" : "hidden from voters"}
+                </p>
+                <p className="text-muted-foreground">
+                  {resultsVisible
+                    ? "Anyone can see the tally on the ballot and results pages."
+                    : "Only EC sees the tally. Release when you're ready to publish."}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant={resultsVisible ? "outline" : "default"}
+                onClick={() => setVisibility.mutate({ id: election.id, data: { visible: !resultsVisible } })}
+                disabled={setVisibility.isPending}
+                data-testid={`button-toggle-results-${election.id}`}
+              >
+                {setVisibility.isPending
+                  ? "Saving…"
+                  : resultsVisible
+                    ? "Hide results"
+                    : "Release results"}
+              </Button>
+            </div>
+          )}
+          {showPreview && election.status !== "draft" && (
+            <ResultsPreview electionId={election.id} />
+          )}
           {showDocs && (
             <div>
               <DocumentUploader electionId={election.id} />
@@ -642,5 +693,43 @@ function ElectionCard({
         )}
       </CardFooter>
     </Card>
+  );
+}
+
+function ResultsPreview({ electionId }: { electionId: number }) {
+  const { data: tally, isLoading, isError } = useGetElectionTally(electionId);
+  if (isLoading) {
+    return <p className="text-xs text-muted-foreground">Loading preview…</p>;
+  }
+  if (isError || !tally) {
+    return <p className="text-xs text-muted-foreground">No tally available yet.</p>;
+  }
+  if (tally.options.length === 0) {
+    return <p className="text-xs text-muted-foreground">No votes recorded.</p>;
+  }
+  const total = tally.totalBallots ?? 0;
+  return (
+    <div className="rounded-md border border-border/60 bg-background px-3 py-2 space-y-2">
+      <p className="text-xs font-medium text-foreground">
+        EC preview — {total} {total === 1 ? "ballot" : "ballots"} cast
+      </p>
+      <div className="space-y-1.5">
+        {tally.options.map(option => {
+          const count = option.voteCount ?? 0;
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          return (
+            <div key={option.optionId ?? option.optionLabel} className="text-xs">
+              <div className="flex justify-between">
+                <span>{option.optionLabel}</span>
+                <span className="text-muted-foreground">{count} ({pct}%)</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded overflow-hidden mt-0.5">
+                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

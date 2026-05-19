@@ -27,6 +27,7 @@ import type {
   HealthStatus,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
+  SetResultsVisibilityBody,
   TallyResult,
   UpdateElectionBody,
   VoterLogEntry,
@@ -713,6 +714,95 @@ export function useGetElectionTally<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Toggles whether tally results are visible to non-EC users on the ballot and public results pages.
+ * @summary Show or hide vote results (admin only)
+ */
+export const getSetResultsVisibilityUrl = (id: number) => {
+  return `/api/elections/${id}/results-visibility`;
+};
+
+export const setResultsVisibility = async (
+  id: number,
+  setResultsVisibilityBody: SetResultsVisibilityBody,
+  options?: RequestInit,
+): Promise<Election> => {
+  return customFetch<Election>(getSetResultsVisibilityUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setResultsVisibilityBody),
+  });
+};
+
+export const getSetResultsVisibilityMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setResultsVisibility>>,
+    TError,
+    { id: number; data: BodyType<SetResultsVisibilityBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setResultsVisibility>>,
+  TError,
+  { id: number; data: BodyType<SetResultsVisibilityBody> },
+  TContext
+> => {
+  const mutationKey = ["setResultsVisibility"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setResultsVisibility>>,
+    { id: number; data: BodyType<SetResultsVisibilityBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setResultsVisibility(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetResultsVisibilityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setResultsVisibility>>
+>;
+export type SetResultsVisibilityMutationBody =
+  BodyType<SetResultsVisibilityBody>;
+export type SetResultsVisibilityMutationError = ErrorType<void>;
+
+/**
+ * @summary Show or hide vote results (admin only)
+ */
+export const useSetResultsVisibility = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setResultsVisibility>>,
+    TError,
+    { id: number; data: BodyType<SetResultsVisibilityBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setResultsVisibility>>,
+  TError,
+  { id: number; data: BodyType<SetResultsVisibilityBody> },
+  TContext
+> => {
+  return useMutation(getSetResultsVisibilityMutationOptions(options));
+};
 
 /**
  * Returns the list of members who have cast a ballot, with timestamps. Does NOT reveal vote contents.
