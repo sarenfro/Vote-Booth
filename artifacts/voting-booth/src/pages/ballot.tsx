@@ -88,7 +88,7 @@ export function Ballot() {
     query: { enabled: !!id, queryKey: getGetElectionQueryKey(id) },
   });
 
-  const { data: hasVotedData } = useHasVoted(id, {
+  const { data: hasVotedData, isLoading: hasVotedLoading } = useHasVoted(id, {
     query: {
       enabled: !!id,
       queryKey: getHasVotedQueryKey(id),
@@ -106,6 +106,8 @@ export function Ballot() {
   const hasVoted = hasVotedData?.hasVoted || submitted;
   const isClosed = election?.status === "closed";
   const showTally = isClosed || hasVoted;
+  const canShowForm =
+    election?.status === "open" && !hasVoted && !hasVotedLoading;
 
   function toggleMulti(optionId: number) {
     setMultiSelections(prev =>
@@ -212,9 +214,9 @@ export function Ballot() {
         </div>
       </div>
 
-      {election.status === "open" && !hasVoted && (
+      {canShowForm && (
         <div className="bg-accent/10 border border-accent/20 rounded-lg px-4 py-3 text-sm text-accent-foreground">
-          Enter your member ID in the top bar, then cast your vote below.
+          Enter your member ID in the top bar, then cast your vote below. Your vote is final once submitted.
         </div>
       )}
 
@@ -230,7 +232,7 @@ export function Ballot() {
         </div>
       )}
 
-      {election.status === "open" && !hasVoted && (
+      {canShowForm && (
         <Card className="shadow-sm">
           <div className="h-1 bg-primary w-full rounded-t-lg" />
           <CardHeader>
