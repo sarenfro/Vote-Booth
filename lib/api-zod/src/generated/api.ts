@@ -266,6 +266,9 @@ export const GetVoterLogResponseItem = zod.object({
   name: zod.string().nullish(),
   email: zod.string().nullish(),
   votedAt: zod.coerce.date(),
+  choice: zod
+    .string()
+    .describe("Human-readable rendering of the member's ballot."),
 });
 export const GetVoterLogResponse = zod.array(GetVoterLogResponseItem);
 

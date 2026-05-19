@@ -5,6 +5,7 @@ import {
   electionOptions,
   voterLog,
   members,
+  ballots,
 } from "@workspace/db";
 import { eq, and, or, desc, inArray } from "drizzle-orm";
 
@@ -238,23 +239,80 @@ router.post("/elections/:id/results-visibility", async (req: Request, res: Respo
   res.json(formatElection(updated));
 });
 
-// GET /api/elections/:id/voter-log: list members who voted (EC/admin only).
-// Returns identity + timestamp only; does NOT reveal vote contents.
+// GET /api/elections/:id/voter-log: list members who voted (EC/admin only)
+// along with each member's ballot choices, pre-rendered as a human-readable
+// summary so the EC dashboard can display per-voter results.
 router.get("/elections/:id/voter-log", async (req: Request, res: Response) => {
   if (!(await requireEcOrAdmin(req, res))) return;
   const electionId = parseInt(req.params.id as string, 10);
+
+  const [election] = await db
+    .select({ voteType: elections.voteType })
+    .from(elections)
+    .where(eq(elections.id, electionId))
+    .limit(1);
+  if (!election) {
+    res.status(404).json({ error: "Election not found" });
+    return;
+  }
+
+  const opts = await db
+    .select({ id: electionOptions.id, label: electionOptions.label })
+    .from(electionOptions)
+    .where(eq(electionOptions.electionId, electionId));
+  const optionLabel = new Map<number, string>(opts.map(o => [o.id, o.label]));
+
   const rows = await db
     .select({
       memberId: voterLog.memberId,
       name: members.name,
       email: members.email,
       votedAt: voterLog.votedAt,
+      payload: ballots.payload,
     })
     .from(voterLog)
     .leftJoin(members, eq(members.id, voterLog.memberId))
+    .leftJoin(
+      ballots,
+      and(eq(ballots.electionId, voterLog.electionId), eq(ballots.memberId, voterLog.memberId)),
+    )
     .where(eq(voterLog.electionId, electionId))
     .orderBy(desc(voterLog.votedAt));
-  res.json(rows);
+
+  const formatChoice = (payload: unknown): string => {
+    if (!payload || typeof payload !== "object") return "—";
+    const p = payload as Record<string, unknown>;
+    switch (election.voteType) {
+      case "yes_no":
+        return p.choice === "yes" ? "Yes" : p.choice === "no" ? "No" : "—";
+      case "plurality": {
+        const id = typeof p.option_id === "number" ? p.option_id : Number(p.option_id);
+        return optionLabel.get(id) ?? `Option ${id}`;
+      }
+      case "multi_select": {
+        const ids = Array.isArray(p.option_ids) ? (p.option_ids as unknown[]) : [];
+        if (ids.length === 0) return "(none)";
+        return ids.map(id => optionLabel.get(Number(id)) ?? `Option ${id}`).join(", ");
+      }
+      case "ranked_choice": {
+        const rankings = Array.isArray(p.rankings) ? (p.rankings as unknown[]) : [];
+        if (rankings.length === 0) return "(none)";
+        return rankings.map(id => optionLabel.get(Number(id)) ?? `Option ${id}`).join(" › ");
+      }
+      default:
+        return "—";
+    }
+  };
+
+  res.json(
+    rows.map(r => ({
+      memberId: r.memberId,
+      name: r.name,
+      email: r.email,
+      votedAt: r.votedAt,
+      choice: formatChoice(r.payload),
+    })),
+  );
 });
 
 // GET /api/elections/:id/has-voted: check voter_log for the current member.

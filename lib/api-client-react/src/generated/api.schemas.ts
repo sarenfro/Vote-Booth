@@ -164,6 +164,8 @@ export interface VoterLogEntry {
   name?: string | null;
   email?: string | null;
   votedAt: string;
+  /** Human-readable rendering of the member's ballot. */
+  choice: string;
 }
 
 export interface HasVotedResponse {

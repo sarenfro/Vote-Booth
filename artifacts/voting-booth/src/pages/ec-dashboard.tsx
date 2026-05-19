@@ -145,25 +145,33 @@ function VoterLogSection({ electionId }: { electionId: number }) {
   return (
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground mb-2">
-        {log.length} ballot{log.length !== 1 ? "s" : ""} cast (identities visible to EC/admins only — vote contents remain anonymous).
+        {log.length} ballot{log.length !== 1 ? "s" : ""} cast — identities and choices visible to EC/admins only.
       </p>
-      <div className="max-h-64 overflow-y-auto border border-border/60 rounded-md divide-y divide-border/40">
+      <div className="max-h-80 overflow-y-auto border border-border/60 rounded-md divide-y divide-border/40">
         {log.map((entry) => (
           <div
             key={`${entry.memberId}-${entry.votedAt}`}
-            className="flex items-center justify-between gap-3 px-3 py-2 text-xs"
+            className="px-3 py-2 text-xs space-y-1"
           >
-            <div className="min-w-0">
-              <div className="font-medium text-foreground truncate">
-                {entry.name ?? entry.memberId}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-foreground truncate">
+                  {entry.name ?? entry.memberId}
+                </div>
+                <div className="text-muted-foreground truncate">
+                  {entry.memberId}
+                  {entry.email ? ` · ${entry.email}` : ""}
+                </div>
               </div>
-              <div className="text-muted-foreground truncate">
-                {entry.memberId}
-                {entry.email ? ` · ${entry.email}` : ""}
+              <div className="text-muted-foreground whitespace-nowrap shrink-0">
+                {format(new Date(entry.votedAt), "MMM d, yyyy h:mm a")}
               </div>
             </div>
-            <div className="text-muted-foreground whitespace-nowrap shrink-0">
-              {format(new Date(entry.votedAt), "MMM d, yyyy h:mm:ss a")}
+            <div className="flex items-start gap-2 pt-1">
+              <span className="text-muted-foreground shrink-0">Voted:</span>
+              <span className="text-foreground font-medium break-words">
+                {entry.choice ?? "—"}
+              </span>
             </div>
           </div>
         ))}

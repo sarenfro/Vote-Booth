@@ -661,7 +661,7 @@ components:
 
     VoterLogEntry:
       type: object
-      required: [memberId, votedAt]
+      required: [memberId, votedAt, choice]
       properties:
         memberId:
           type: string
@@ -674,6 +674,9 @@ components:
         votedAt:
           type: string
           format: date-time
+        choice:
+          type: string
+          description: Human-readable rendering of the member's ballot.
 
     HasVotedResponse:
       type: object

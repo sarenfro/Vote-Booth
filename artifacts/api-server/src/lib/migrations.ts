@@ -6,6 +6,13 @@ ALTER TABLE elections
   ADD COLUMN IF NOT EXISTS results_visible boolean NOT NULL DEFAULT false;
 `;
 
+const ADD_BALLOT_MEMBER_SQL = `
+ALTER TABLE ballots
+  ADD COLUMN IF NOT EXISTS member_id text REFERENCES members(id);
+CREATE INDEX IF NOT EXISTS ballots_election_member_idx
+  ON ballots (election_id, member_id);
+`;
+
 const VOTING_FUNCTIONS_SQL = `
 CREATE OR REPLACE FUNCTION cast_vote(
   p_election_id integer,
@@ -81,14 +88,15 @@ BEGIN
   INSERT INTO voter_log (election_id, member_id, voted_at)
   VALUES (p_election_id, p_member_id, now());
 
-  INSERT INTO ballots (election_id, payload, submitted_at)
-  VALUES (p_election_id, p_payload, now());
+  INSERT INTO ballots (election_id, member_id, payload, submitted_at)
+  VALUES (p_election_id, p_member_id, p_payload, now());
 END;
 $$;
 `;
 
 export async function runMigrations() {
   await pool.query(ADD_RESULTS_VISIBLE_SQL);
+  await pool.query(ADD_BALLOT_MEMBER_SQL);
   await pool.query(VOTING_FUNCTIONS_SQL);
   logger.info("DB migrations applied");
 }

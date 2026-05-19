@@ -16,6 +16,9 @@ export const voterLog = pgTable(
       .references(() => members.id),
     votedAt: timestamp("voted_at", { withTimezone: true }).notNull().defaultNow(),
   },
+  // NOTE: voter_log retains its own row per member for fast double-vote checks
+  // and for the EC voter-log view. Ballots now also carry member_id directly
+  // (see ballots schema), so this separation is no longer an anonymity boundary.
   (table) => [unique("voter_log_election_member_unique").on(table.electionId, table.memberId)],
 );
 
