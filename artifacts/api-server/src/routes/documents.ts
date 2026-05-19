@@ -9,7 +9,7 @@ const router: IRouter = Router();
 function getMemberId(req: Request): string | null {
   const raw = req.headers["x-member-id"];
   if (!raw || Array.isArray(raw)) return null;
-  const id = raw.trim();
+  const id = raw.trim().toLowerCase();
   return id || null;
 }
 

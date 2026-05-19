@@ -10,12 +10,13 @@ export function useMemberId() {
   const [memberId, _setMemberId] = useState<string>("");
 
   const setMemberId = useCallback((id: string) => {
-    if (id) {
-      setCustomHeaders({ "X-Member-Id": id });
+    const normalized = id.toLowerCase();
+    if (normalized) {
+      setCustomHeaders({ "X-Member-Id": normalized });
     } else {
       setCustomHeaders({});
     }
-    _setMemberId(id);
+    _setMemberId(normalized);
   }, []);
 
   return [memberId, setMemberId] as const;
