@@ -273,6 +273,21 @@ export const GetVoterLogResponseItem = zod.object({
 export const GetVoterLogResponse = zod.array(GetVoterLogResponseItem);
 
 /**
+ * Returns every known member that does not appear in the voter log for this election. Useful for EC follow-up.
+ * @summary List members who have NOT voted yet (EC/admin only, password-gated)
+ */
+export const GetNonVotersParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetNonVotersResponseItem = zod.object({
+  memberId: zod.string(),
+  name: zod.string().nullish(),
+  email: zod.string().nullish(),
+});
+export const GetNonVotersResponse = zod.array(GetNonVotersResponseItem);
+
+/**
  * @summary Check if the current member (X-Member-Id header) has voted
  */
 export const HasVotedParams = zod.object({

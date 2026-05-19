@@ -168,6 +168,12 @@ export interface VoterLogEntry {
   choice: string;
 }
 
+export interface NonVoterEntry {
+  memberId: string;
+  name?: string | null;
+  email?: string | null;
+}
+
 export interface HasVotedResponse {
   hasVoted: boolean;
 }

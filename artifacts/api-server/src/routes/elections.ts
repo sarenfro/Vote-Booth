@@ -7,7 +7,7 @@ import {
   members,
   ballots,
 } from "@workspace/db";
-import { eq, and, or, desc, inArray } from "drizzle-orm";
+import { eq, and, or, desc, inArray, not } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -323,6 +323,38 @@ router.get("/elections/:id/voter-log", async (req: Request, res: Response) => {
       choice: formatChoice(r.payload),
     })),
   );
+});
+
+// GET /api/elections/:id/non-voters: list members who have NOT cast a ballot
+// for this election. Same password gate as the voter log since it leaks
+// eligible-voter identities.
+router.get("/elections/:id/non-voters", async (req: Request, res: Response) => {
+  if (!(await requireEcOrAdmin(req, res))) return;
+  const expected = process.env.VOTER_LOG_PASSWORD;
+  if (!expected) {
+    res.status(500).json({ error: "Voter log password is not configured on the server" });
+    return;
+  }
+  const provided = req.header("x-voter-log-password");
+  if (provided !== expected) {
+    res.status(401).json({ error: "Invalid voter log password" });
+    return;
+  }
+  const electionId = parseInt(req.params.id as string, 10);
+
+  const voted = await db
+    .select({ memberId: voterLog.memberId })
+    .from(voterLog)
+    .where(eq(voterLog.electionId, electionId));
+  const votedIds = voted.map(v => v.memberId);
+
+  const rows = await db
+    .select({ memberId: members.id, name: members.name, email: members.email })
+    .from(members)
+    .where(votedIds.length > 0 ? not(inArray(members.id, votedIds)) : undefined)
+    .orderBy(members.name);
+
+  res.json(rows);
 });
 
 // GET /api/elections/:id/has-voted: check voter_log for the current member.

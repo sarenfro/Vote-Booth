@@ -25,6 +25,7 @@ import type {
   ElectionWithOptions,
   HasVotedResponse,
   HealthStatus,
+  NonVoterEntry,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
   SetResultsVisibilityBody,
@@ -884,6 +885,94 @@ export function useGetVoterLog<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetVoterLogQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns every known member that does not appear in the voter log for this election. Useful for EC follow-up.
+ * @summary List members who have NOT voted yet (EC/admin only, password-gated)
+ */
+export const getGetNonVotersUrl = (id: number) => {
+  return `/api/elections/${id}/non-voters`;
+};
+
+export const getNonVoters = async (
+  id: number,
+  options?: RequestInit,
+): Promise<NonVoterEntry[]> => {
+  return customFetch<NonVoterEntry[]>(getGetNonVotersUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNonVotersQueryKey = (id: number) => {
+  return [`/api/elections/${id}/non-voters`] as const;
+};
+
+export const getGetNonVotersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNonVoters>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getNonVoters>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetNonVotersQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNonVoters>>> = ({
+    signal,
+  }) => getNonVoters(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNonVoters>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNonVotersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNonVoters>>
+>;
+export type GetNonVotersQueryError = ErrorType<void>;
+
+/**
+ * @summary List members who have NOT voted yet (EC/admin only, password-gated)
+ */
+
+export function useGetNonVoters<
+  TData = Awaited<ReturnType<typeof getNonVoters>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getNonVoters>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNonVotersQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

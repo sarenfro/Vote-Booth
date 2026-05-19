@@ -240,6 +240,32 @@ paths:
         "403":
           description: Forbidden (not EC or admin)
 
+  /elections/{id}/non-voters:
+    get:
+      operationId: getNonVoters
+      tags: [elections]
+      summary: List members who have NOT voted yet (EC/admin only, password-gated)
+      description: Returns every known member that does not appear in the voter log for this election. Useful for EC follow-up.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of non-voters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NonVoterEntry"
+        "401":
+          description: Missing or invalid voter log password
+        "403":
+          description: Forbidden (not EC or admin)
+
   /elections/{id}/has-voted:
     get:
       operationId: hasVoted
@@ -677,6 +703,19 @@ components:
         choice:
           type: string
           description: Human-readable rendering of the member's ballot.
+
+    NonVoterEntry:
+      type: object
+      required: [memberId]
+      properties:
+        memberId:
+          type: string
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
 
     HasVotedResponse:
       type: object

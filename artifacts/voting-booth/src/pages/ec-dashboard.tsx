@@ -14,6 +14,7 @@ import {
   useRequestUploadUrl,
   getListDocumentsQueryKey,
   useGetVoterLog,
+  useGetNonVoters,
   useSetResultsVisibility,
   useGetElectionTally,
   type ElectionVoteType,
@@ -147,6 +148,11 @@ function VoterLogSection({ electionId }: { electionId: number }) {
     request: { headers: password ? { "X-Voter-Log-Password": password } : undefined },
   });
 
+  const { data: nonVoters, isLoading: nonVotersLoading } = useGetNonVoters(electionId, {
+    query: { enabled: !!password, retry: false },
+    request: { headers: password ? { "X-Voter-Log-Password": password } : undefined },
+  });
+
   const status = (error as { status?: number } | null)?.status;
 
   useEffect(() => {
@@ -257,6 +263,44 @@ function VoterLogSection({ electionId }: { electionId: number }) {
           </div>
         ))}
       </div>
+      <NonVotersList nonVoters={nonVoters} isLoading={nonVotersLoading} />
+    </div>
+  );
+}
+
+function NonVotersList({
+  nonVoters,
+  isLoading,
+}: {
+  nonVoters: Array<{ memberId: string; name?: string | null; email?: string | null }> | undefined;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return <p className="text-xs text-muted-foreground mt-3">Loading non-voters…</p>;
+  }
+  if (!nonVoters) return null;
+  return (
+    <div className="mt-4 space-y-2">
+      <p className="text-xs font-medium text-foreground">
+        Haven't voted yet ({nonVoters.length})
+      </p>
+      {nonVoters.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Everyone has voted.</p>
+      ) : (
+        <div className="max-h-60 overflow-y-auto border border-border/60 rounded-md divide-y divide-border/40">
+          {nonVoters.map(m => (
+            <div key={m.memberId} className="px-3 py-2 text-xs">
+              <div className="font-medium text-foreground truncate">
+                {m.name ?? m.memberId}
+              </div>
+              <div className="text-muted-foreground truncate">
+                {m.memberId}
+                {m.email ? ` · ${m.email}` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
