@@ -37,7 +37,7 @@
 --   6. Split-table insert: voter_log (who) then ballots (what, no voter link)
 CREATE OR REPLACE FUNCTION cast_vote(
   p_election_id integer,
-  p_member_id   integer,
+  p_member_id   text,
   p_payload     jsonb
 )
 RETURNS void
