@@ -1,7 +1,6 @@
 import { useListElections, useGetElectionTally, useListDocuments } from "@workspace/api-client-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "open") return <Badge className="bg-primary/10 text-primary border-primary/20">Open</Badge>;
@@ -9,7 +8,33 @@ function StatusBadge({ status }: { status: string }) {
   return null;
 }
 
-function ElectionResult({ election }: { election: { id: number; title: string; status: string; voteType: string; eligibleVoterCount?: number | null; description?: string | null; resultsVisible?: boolean } }) {
+type ElectionForResults = {
+  id: number;
+  title: string;
+  status: string;
+  voteType: string;
+  eligibleVoterCount?: number | null;
+  description?: string | null;
+  resultsVisible?: boolean;
+  thresholdType?: string | null;
+  thresholdPercent?: number | null;
+};
+
+function thresholdFraction(election: ElectionForResults): number {
+  switch (election.thresholdType) {
+    case "two_thirds":
+      return 2 / 3;
+    case "three_quarters":
+      return 0.75;
+    case "custom":
+      return election.thresholdPercent != null ? election.thresholdPercent / 100 : 0.5;
+    case "simple_majority":
+    default:
+      return 0.5;
+  }
+}
+
+function ElectionResult({ election }: { election: ElectionForResults }) {
   const resultsVisible = !!election.resultsVisible;
   const { data: tally } = useGetElectionTally(election.id, {
     query: { enabled: election.status === "closed" && resultsVisible },
@@ -17,6 +42,19 @@ function ElectionResult({ election }: { election: { id: number; title: string; s
   const { data: docs } = useListDocuments(election.id);
 
   const totalVotes = tally?.totalBallots ?? 0;
+  const eligible = election.eligibleVoterCount ?? null;
+  const turnoutPct =
+    eligible && eligible > 0 ? Math.round((totalVotes / eligible) * 100) : null;
+
+  // Compute Pass/Fail for yes_no elections without exposing the split.
+  let outcome: { label: string; passed: boolean } | null = null;
+  if (resultsVisible && tally && election.voteType === "yes_no" && totalVotes > 0) {
+    const yesCount = tally.options.find(o => /^yes$/i.test(o.optionLabel))?.voteCount ?? 0;
+    const threshold = thresholdFraction(election);
+    const quorumOk = tally.quorumMet !== false; // null/true → ok
+    const passed = quorumOk && yesCount / totalVotes >= threshold;
+    outcome = { label: passed ? "Passed" : "Failed", passed };
+  }
 
   return (
     <Card className="shadow-sm">
@@ -27,17 +65,6 @@ function ElectionResult({ election }: { election: { id: number; title: string; s
             {election.description && (
               <p className="text-sm text-muted-foreground mt-1">{election.description}</p>
             )}
-            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-              <span>{totalVotes} vote{totalVotes !== 1 ? "s" : ""} cast</span>
-              {tally?.quorumMet !== null && tally?.quorumMet !== undefined && (
-                <span className={tally.quorumMet ? "text-green-600 font-medium" : "text-amber-600 font-medium"}>
-                  Quorum {tally.quorumMet ? "met" : "not met"}
-                </span>
-              )}
-              {election.eligibleVoterCount && (
-                <span>{Math.round((totalVotes / election.eligibleVoterCount) * 100)}% participation</span>
-              )}
-            </div>
           </div>
           <StatusBadge status={election.status} />
         </div>
@@ -52,22 +79,48 @@ function ElectionResult({ election }: { election: { id: number; title: string; s
           <p className="text-sm text-muted-foreground">
             {election.status === "open" ? "Results visible after closing." : "No tally available yet."}
           </p>
-        ) : tally.options.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No votes recorded.</p>
         ) : (
           <div className="space-y-3">
-            {tally.options.map((option, idx) => {
-              const pct = totalVotes > 0 ? Math.round((option.voteCount / totalVotes) * 100) : 0;
-              return (
-                <div key={option.optionId ?? idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">{option.optionLabel}</span>
-                    <span className="text-muted-foreground tabular-nums">{option.voteCount} ({pct}%)</span>
-                  </div>
-                  <Progress value={pct} className="h-2.5" />
-                </div>
-              );
-            })}
+            <div className="text-sm text-muted-foreground">
+              {eligible != null ? (
+                <>
+                  <span className="font-medium text-foreground tabular-nums">{turnoutPct}%</span>{" "}
+                  participation
+                  <span className="text-muted-foreground">
+                    {" "}
+                    ({totalVotes} of {eligible} voted)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-foreground tabular-nums">{totalVotes}</span>{" "}
+                  ballot{totalVotes !== 1 ? "s" : ""} cast
+                </>
+              )}
+              {tally.quorumMet === false && (
+                <span className="ml-2 text-amber-600 font-medium">Quorum not met</span>
+              )}
+            </div>
+
+            {outcome ? (
+              <div
+                data-testid={`outcome-${election.id}`}
+                className={
+                  "inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold " +
+                  (outcome.passed
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200")
+                }
+              >
+                {outcome.label}
+              </div>
+            ) : election.voteType !== "yes_no" ? (
+              <p className="text-sm text-muted-foreground">
+                Results recorded. Detailed counts are not published.
+              </p>
+            ) : totalVotes === 0 ? (
+              <p className="text-sm text-muted-foreground">No votes recorded.</p>
+            ) : null}
           </div>
         )}
 
