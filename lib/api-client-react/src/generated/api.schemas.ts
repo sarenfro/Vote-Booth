@@ -51,6 +51,8 @@ export interface Election {
   showLiveProgress: boolean;
   resultsVisible?: boolean;
   maxSelections?: number | null;
+  /** If set, only members with a matching cohort may vote. */
+  cohort?: string | null;
   status: ElectionStatus;
   startsAt?: string | null;
   endsAt?: string | null;
@@ -102,6 +104,8 @@ export interface CreateElectionBody {
   showLiveProgress: boolean;
   resultsVisible?: boolean;
   maxSelections?: number | null;
+  /** If set, restricts voting to members with a matching cohort. */
+  cohort?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
   createdBy?: number | null;
@@ -129,6 +133,7 @@ export interface UpdateElectionBody {
   eligibleVoterCount?: number | null;
   showLiveProgress?: boolean;
   maxSelections?: number | null;
+  cohort?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
   options?: string[] | null;

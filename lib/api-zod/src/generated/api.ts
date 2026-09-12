@@ -33,6 +33,10 @@ export const ListElectionsResponseItem = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
+  cohort: zod
+    .string()
+    .nullish()
+    .describe("If set, only members with a matching cohort may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -59,6 +63,10 @@ export const CreateElectionBody = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
+  cohort: zod
+    .string()
+    .nullish()
+    .describe("If set, restricts voting to members with a matching cohort."),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
   createdBy: zod.number().nullish(),
@@ -92,6 +100,10 @@ export const GetElectionResponse = zod
     showLiveProgress: zod.boolean(),
     resultsVisible: zod.boolean().optional(),
     maxSelections: zod.number().nullish(),
+    cohort: zod
+      .string()
+      .nullish()
+      .describe("If set, only members with a matching cohort may vote."),
     status: zod.enum(["draft", "open", "closed"]),
     startsAt: zod.coerce.date().nullish(),
     endsAt: zod.coerce.date().nullish(),
@@ -137,6 +149,7 @@ export const UpdateElectionBody = zod.object({
   eligibleVoterCount: zod.number().nullish(),
   showLiveProgress: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
+  cohort: zod.string().nullish(),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
   options: zod.array(zod.string()).nullish(),
@@ -162,6 +175,10 @@ export const UpdateElectionResponse = zod
     showLiveProgress: zod.boolean(),
     resultsVisible: zod.boolean().optional(),
     maxSelections: zod.number().nullish(),
+    cohort: zod
+      .string()
+      .nullish()
+      .describe("If set, only members with a matching cohort may vote."),
     status: zod.enum(["draft", "open", "closed"]),
     startsAt: zod.coerce.date().nullish(),
     endsAt: zod.coerce.date().nullish(),
@@ -245,6 +262,10 @@ export const SetResultsVisibilityResponse = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
+  cohort: zod
+    .string()
+    .nullish()
+    .describe("If set, only members with a matching cohort may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -320,6 +341,10 @@ export const OpenElectionResponse = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
+  cohort: zod
+    .string()
+    .nullish()
+    .describe("If set, only members with a matching cohort may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -350,6 +375,10 @@ export const CloseElectionResponse = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
+  cohort: zod
+    .string()
+    .nullish()
+    .describe("If set, only members with a matching cohort may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),

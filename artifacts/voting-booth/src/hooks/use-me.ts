@@ -5,6 +5,7 @@ interface MeResponse {
   memberId: string;
   isAdmin: boolean;
   isEc: boolean;
+  cohort: string | null;
 }
 
 export function useMe(memberId: string) {

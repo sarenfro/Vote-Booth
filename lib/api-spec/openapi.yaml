@@ -486,6 +486,10 @@ components:
         maxSelections:
           type: integer
           nullable: true
+        cohort:
+          type: string
+          nullable: true
+          description: If set, only members with a matching cohort may vote.
         status:
           type: string
           enum: [draft, open, closed]
@@ -575,6 +579,10 @@ components:
         maxSelections:
           type: integer
           nullable: true
+        cohort:
+          type: string
+          nullable: true
+          description: If set, restricts voting to members with a matching cohort.
         startsAt:
           type: string
           format: date-time
@@ -622,6 +630,9 @@ components:
           type: boolean
         maxSelections:
           type: integer
+          nullable: true
+        cohort:
+          type: string
           nullable: true
         startsAt:
           type: string

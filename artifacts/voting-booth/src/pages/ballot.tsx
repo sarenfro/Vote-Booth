@@ -84,7 +84,7 @@ export function Ballot() {
   const isAdmin = searchParams.get("admin") === "true";
   const queryClient = useQueryClient();
 
-  const { data: election, isLoading } = useGetElection(id, {
+  const { data: election, isLoading, error: electionError } = useGetElection(id, {
     query: { enabled: !!id, queryKey: getGetElectionQueryKey(id) },
   });
 
@@ -177,6 +177,18 @@ export function Ballot() {
   }
 
   if (!election) {
+    const errStatus = (electionError as { status?: number } | null)?.status;
+    if (errStatus === 403) {
+      return (
+        <div className="text-center py-16">
+          <p className="text-xl font-semibold text-foreground">You are not eligible to vote in this election.</p>
+          <p className="text-muted-foreground mt-2 text-sm">This election is restricted to a specific cohort and your NetID is not on the eligible voter list.</p>
+          <Link href={isAdmin ? "/?admin=true" : "/"}>
+            <Button variant="outline" className="mt-6">Back to elections</Button>
+          </Link>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-16 text-muted-foreground">
         <p className="text-lg font-medium">Election not found.</p>

@@ -7,7 +7,7 @@ import {
   members,
   ballots,
 } from "@workspace/db";
-import { eq, and, or, desc, inArray, not } from "drizzle-orm";
+import { eq, and, or, desc, inArray, not, isNull } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -69,34 +69,38 @@ async function requireEcOrAdmin(req: Request, res: Response): Promise<boolean> {
 }
 
 // GET /api/elections: list elections.
-// Admins (valid X-Member-Id with isAdmin = true) see all statuses including drafts.
-// Non-admins see open and closed elections only.
+// Admins see all statuses including drafts.
+// Non-admins see open/closed elections they are eligible for (cohort match or no cohort restriction).
 router.get("/elections", async (req: Request, res: Response) => {
   const memberId = getMemberId(req);
   let isAdmin = false;
+  let memberCohort: string | null = null;
   if (memberId) {
     const [member] = await db
-      .select({ isAdmin: members.isAdmin })
+      .select({ isAdmin: members.isAdmin, cohort: members.cohort })
       .from(members)
       .where(eq(members.id, memberId))
       .limit(1);
     isAdmin = member?.isAdmin ?? false;
+    memberCohort = member?.cohort ?? null;
   }
+
+  const statusFilter = or(eq(elections.status, "open"), eq(elections.status, "closed"));
+  const cohortFilter = memberCohort
+    ? or(isNull(elections.cohort), eq(elections.cohort, memberCohort))
+    : isNull(elections.cohort);
 
   const rows = await db
     .select()
     .from(elections)
-    .where(
-      isAdmin
-        ? undefined
-        : or(eq(elections.status, "open"), eq(elections.status, "closed")),
-    )
+    .where(isAdmin ? undefined : and(statusFilter, cohortFilter))
     .orderBy(desc(elections.createdAt));
   res.json(rows.map(formatElection));
 });
 
 // GET /api/elections/:id: single election with options.
 // Draft elections are only visible to admins.
+// Cohort-restricted elections return 403 for ineligible members.
 router.get("/elections/:id", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const [election] = await db
@@ -108,22 +112,30 @@ router.get("/elections/:id", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Election not found" });
     return;
   }
-  if (election.status === "draft") {
-    const memberId = getMemberId(req);
-    let isAdmin = false;
-    if (memberId) {
-      const [member] = await db
-        .select({ isAdmin: members.isAdmin })
-        .from(members)
-        .where(eq(members.id, memberId))
-        .limit(1);
-      isAdmin = member?.isAdmin ?? false;
-    }
-    if (!isAdmin) {
-      res.status(404).json({ error: "Election not found" });
-      return;
-    }
+
+  const memberId = getMemberId(req);
+  let isAdmin = false;
+  let memberCohort: string | null = null;
+  if (memberId) {
+    const [member] = await db
+      .select({ isAdmin: members.isAdmin, cohort: members.cohort })
+      .from(members)
+      .where(eq(members.id, memberId))
+      .limit(1);
+    isAdmin = member?.isAdmin ?? false;
+    memberCohort = member?.cohort ?? null;
   }
+
+  if (election.status === "draft" && !isAdmin) {
+    res.status(404).json({ error: "Election not found" });
+    return;
+  }
+
+  if (!isAdmin && election.cohort && election.cohort !== memberCohort) {
+    res.status(403).json({ error: "not_eligible" });
+    return;
+  }
+
   const options = await db
     .select()
     .from(electionOptions)
@@ -149,6 +161,25 @@ router.post("/elections/:id/vote", async (req: Request, res: Response) => {
     res.status(400).json({ error: "payload is required" });
     return;
   }
+
+  // Cohort eligibility check
+  const [electionRow] = await db
+    .select({ cohort: elections.cohort })
+    .from(elections)
+    .where(eq(elections.id, electionId))
+    .limit(1);
+  if (electionRow?.cohort) {
+    const [member] = await db
+      .select({ cohort: members.cohort })
+      .from(members)
+      .where(eq(members.id, memberId))
+      .limit(1);
+    if (member?.cohort !== electionRow.cohort) {
+      res.status(403).json({ error: "not_eligible" });
+      return;
+    }
+  }
+
   try {
     await pool.query("SELECT cast_vote($1, $2, $3::jsonb)", [
       electionId,
@@ -342,16 +373,28 @@ router.get("/elections/:id/non-voters", async (req: Request, res: Response) => {
   }
   const electionId = parseInt(req.params.id as string, 10);
 
+  const [electionMeta] = await db
+    .select({ cohort: elections.cohort })
+    .from(elections)
+    .where(eq(elections.id, electionId))
+    .limit(1);
+
   const voted = await db
     .select({ memberId: voterLog.memberId })
     .from(voterLog)
     .where(eq(voterLog.electionId, electionId));
   const votedIds = voted.map(v => v.memberId);
 
+  const notVotedFilter = votedIds.length > 0 ? not(inArray(members.id, votedIds)) : undefined;
+  const cohortFilter = electionMeta?.cohort ? eq(members.cohort, electionMeta.cohort) : undefined;
+  const whereClause = notVotedFilter && cohortFilter
+    ? and(notVotedFilter, cohortFilter)
+    : notVotedFilter ?? cohortFilter;
+
   const rows = await db
     .select({ memberId: members.id, name: members.name, email: members.email })
     .from(members)
-    .where(votedIds.length > 0 ? not(inArray(members.id, votedIds)) : undefined)
+    .where(whereClause)
     .orderBy(members.name);
 
   res.json(rows);
@@ -389,6 +432,7 @@ router.post("/elections", async (req: Request, res: Response) => {
     eligibleVoterCount,
     showLiveProgress,
     maxSelections,
+    cohort,
     startsAt,
     endsAt,
     createdBy,
@@ -403,6 +447,7 @@ router.post("/elections", async (req: Request, res: Response) => {
     eligibleVoterCount?: number;
     showLiveProgress: boolean;
     maxSelections?: number;
+    cohort?: string | null;
     startsAt?: string;
     endsAt?: string;
     createdBy?: number;
@@ -431,6 +476,7 @@ router.post("/elections", async (req: Request, res: Response) => {
       eligibleVoterCount,
       showLiveProgress: showLiveProgress ?? true,
       maxSelections,
+      cohort: cohort ?? null,
       startsAt: startsAt ? new Date(startsAt) : undefined,
       endsAt: endsAt ? new Date(endsAt) : undefined,
       createdBy,
@@ -483,6 +529,7 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
     eligibleVoterCount,
     showLiveProgress,
     maxSelections,
+    cohort,
     startsAt,
     endsAt,
     options: optionLabels,
@@ -495,6 +542,7 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
     eligibleVoterCount?: number;
     showLiveProgress?: boolean;
     maxSelections?: number;
+    cohort?: string | null;
     startsAt?: string;
     endsAt?: string;
     options?: string[];
@@ -509,6 +557,7 @@ router.patch("/elections/:id", async (req: Request, res: Response) => {
   if (eligibleVoterCount !== undefined) updates.eligibleVoterCount = eligibleVoterCount;
   if (showLiveProgress !== undefined) updates.showLiveProgress = showLiveProgress;
   if (maxSelections !== undefined) updates.maxSelections = maxSelections;
+  if ("cohort" in req.body) updates.cohort = cohort ?? null;
   if (startsAt !== undefined) updates.startsAt = new Date(startsAt);
   if (endsAt !== undefined) updates.endsAt = new Date(endsAt);
 

@@ -8,6 +8,7 @@ export const members = pgTable("members", {
   name: text("name").notNull(),
   isAdmin: boolean("is_admin").notNull().default(false),
   isEc: boolean("is_ec").notNull().default(false),
+  cohort: text("cohort"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
