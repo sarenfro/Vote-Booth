@@ -5,6 +5,20 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface MemberEntry {
+  id: string;
+  name: string;
+  email: string;
+  isAdmin: boolean;
+  isEc: boolean;
+  cohort?: string | null;
+  disqualified: boolean;
+}
+
+export interface UpdateMemberBody {
+  disqualified?: boolean;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -51,8 +65,8 @@ export interface Election {
   showLiveProgress: boolean;
   resultsVisible?: boolean;
   maxSelections?: number | null;
-  /** If set, only members with a matching cohort may vote. */
-  cohort?: string | null;
+  /** If set, only members whose cohort is in this list may vote. */
+  cohorts?: string[] | null;
   status: ElectionStatus;
   startsAt?: string | null;
   endsAt?: string | null;
@@ -104,8 +118,8 @@ export interface CreateElectionBody {
   showLiveProgress: boolean;
   resultsVisible?: boolean;
   maxSelections?: number | null;
-  /** If set, restricts voting to members with a matching cohort. */
-  cohort?: string | null;
+  /** If set, restricts voting to members whose cohort is in this list. */
+  cohorts?: string[] | null;
   startsAt?: string | null;
   endsAt?: string | null;
   createdBy?: number | null;
@@ -133,7 +147,7 @@ export interface UpdateElectionBody {
   eligibleVoterCount?: number | null;
   showLiveProgress?: boolean;
   maxSelections?: number | null;
-  cohort?: string | null;
+  cohorts?: string[] | null;
   startsAt?: string | null;
   endsAt?: string | null;
   options?: string[] | null;

@@ -25,12 +25,14 @@ import type {
   ElectionWithOptions,
   HasVotedResponse,
   HealthStatus,
+  MemberEntry,
   NonVoterEntry,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
   SetResultsVisibilityBody,
   TallyResult,
   UpdateElectionBody,
+  UpdateMemberBody,
   VoterLogEntry,
 } from "./api.schemas";
 
@@ -42,6 +44,168 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary List all members
+ */
+export const getListMembersUrl = () => {
+  return `/api/members`;
+};
+
+export const listMembers = async (
+  options?: RequestInit,
+): Promise<MemberEntry[]> => {
+  return customFetch<MemberEntry[]>(getListMembersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMembersQueryKey = () => {
+  return [`/api/members`] as const;
+};
+
+export const getListMembersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMembers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMembers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMembersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMembers>>> = ({
+    signal,
+  }) => listMembers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMembers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMembersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMembers>>
+>;
+export type ListMembersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all members
+ */
+
+export function useListMembers<
+  TData = Awaited<ReturnType<typeof listMembers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMembers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMembersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a member (EC/admin only)
+ */
+export const getUpdateMemberUrl = (id: string) => {
+  return `/api/members/${id}`;
+};
+
+export const updateMember = async (
+  id: string,
+  updateMemberBody: UpdateMemberBody,
+  options?: RequestInit,
+): Promise<MemberEntry> => {
+  return customFetch<MemberEntry>(getUpdateMemberUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateMemberBody),
+  });
+};
+
+export const getUpdateMemberMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMember>>,
+    TError,
+    { id: string; data: BodyType<UpdateMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMember>>,
+  TError,
+  { id: string; data: BodyType<UpdateMemberBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMember>>,
+    { id: string; data: BodyType<UpdateMemberBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateMember(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMember>>
+>;
+export type UpdateMemberMutationBody = BodyType<UpdateMemberBody>;
+export type UpdateMemberMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a member (EC/admin only)
+ */
+export const useUpdateMember = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMember>>,
+    TError,
+    { id: string; data: BodyType<UpdateMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMember>>,
+  TError,
+  { id: string; data: BodyType<UpdateMemberBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMemberMutationOptions(options));
+};
 
 /**
  * Returns server health status

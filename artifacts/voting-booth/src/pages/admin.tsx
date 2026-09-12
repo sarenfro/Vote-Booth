@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
 
@@ -32,6 +33,46 @@ const VOTE_TYPE_LABELS: Record<string, string> = {
   ranked_choice: "Ranked Choice",
   multi_select: "Multi-Select",
 };
+
+const COHORT_OPTIONS = [
+  { value: "ft_2028", label: "FT Class of 2028" },
+  { value: "ft_2027", label: "FT Class of 2027" },
+  { value: "evening_2027", label: "Evening Class of 2027" },
+];
+
+function cohortLabel(cohort: string): string {
+  return COHORT_OPTIONS.find(o => o.value === cohort)?.label ?? cohort;
+}
+
+function CohortCheckboxGroup({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  function toggle(cohort: string) {
+    onChange(
+      value.includes(cohort) ? value.filter(c => c !== cohort) : [...value, cohort]
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {COHORT_OPTIONS.map(opt => (
+        <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none text-sm">
+          <Checkbox
+            checked={value.includes(opt.value)}
+            onCheckedChange={() => toggle(opt.value)}
+          />
+          {opt.label}
+        </label>
+      ))}
+      <p className="text-xs text-muted-foreground">
+        Leave all unchecked to allow any member to vote.
+      </p>
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "open") return <Badge className="bg-primary/10 text-primary border-primary/20">Open</Badge>;
@@ -59,7 +100,7 @@ export function Admin() {
   const [quorumCount, setQuorumCount] = useState("");
   const [eligibleCount, setEligibleCount] = useState("");
   const [maxSelections, setMaxSelections] = useState("");
-  const [cohort, setCohort] = useState<string>("");
+  const [cohorts, setCohorts] = useState<string[]>([]);
   const [formError, setFormError] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -67,7 +108,7 @@ export function Admin() {
   const [editDescription, setEditDescription] = useState("");
   const [editQuorum, setEditQuorum] = useState("");
   const [editEligible, setEditEligible] = useState("");
-  const [editCohort, setEditCohort] = useState<string>("");
+  const [editCohorts, setEditCohorts] = useState<string[]>([]);
   const [editError, setEditError] = useState("");
 
   function resetForm() {
@@ -78,7 +119,7 @@ export function Admin() {
     setQuorumCount("");
     setEligibleCount("");
     setMaxSelections("");
-    setCohort("");
+    setCohorts([]);
     setFormError("");
     setShowForm(false);
   }
@@ -120,7 +161,7 @@ export function Admin() {
           eligibleVoterCount: eligibleCount ? parseInt(eligibleCount, 10) : undefined,
           maxSelections: voteType === "multi_select" && maxSelections ? parseInt(maxSelections, 10) : undefined,
           showLiveProgress: true,
-          cohort: cohort || null,
+          cohorts: cohorts.length > 0 ? cohorts : null,
         },
       },
       {
@@ -149,13 +190,13 @@ export function Admin() {
     );
   }
 
-  function startEdit(election: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null; cohort?: string | null }) {
+  function startEdit(election: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null; cohorts?: string[] | null }) {
     setEditingId(election.id);
     setEditTitle(election.title);
     setEditDescription(election.description ?? "");
     setEditQuorum(election.quorumCount != null ? String(election.quorumCount) : "");
     setEditEligible(election.eligibleVoterCount != null ? String(election.eligibleVoterCount) : "");
-    setEditCohort(election.cohort ?? "");
+    setEditCohorts(election.cohorts ?? []);
     setEditError("");
   }
 
@@ -174,7 +215,7 @@ export function Admin() {
           description: editDescription.trim() || null,
           quorumCount: editQuorum ? parseInt(editQuorum, 10) : null,
           eligibleVoterCount: editEligible ? parseInt(editEligible, 10) : null,
-          cohort: editCohort || null,
+          cohorts: editCohorts.length > 0 ? editCohorts : null,
         },
       },
       {
@@ -309,19 +350,8 @@ export function Admin() {
             <Separator />
 
             <div className="space-y-1">
-              <Label>Eligible cohort (optional)</Label>
-              <Select value={cohort} onValueChange={setCohort}>
-                <SelectTrigger className="w-56">
-                  <SelectValue placeholder="All members" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All members</SelectItem>
-                  <SelectItem value="ft_2028">FT Class of 2028</SelectItem>
-                  <SelectItem value="ft_2027">FT Class of 2027</SelectItem>
-                  <SelectItem value="evening_2027">Evening Class of 2027</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Restrict voting to a specific cohort. Leave blank to allow all members.</p>
+              <Label>Eligible cohorts (optional)</Label>
+              <CohortCheckboxGroup value={cohorts} onChange={setCohorts} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -397,7 +427,7 @@ export function Admin() {
                             <CardTitle className="text-base font-semibold">{election.title}</CardTitle>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {VOTE_TYPE_LABELS[election.voteType] ?? election.voteType}
-                              {election.cohort ? ` · ${election.cohort}` : ""}
+                              {election.cohorts?.length ? ` · ${election.cohorts.map(cohortLabel).join(", ")}` : ""}
                               {election.eligibleVoterCount ? ` · ${election.eligibleVoterCount} eligible` : ""}
                             </p>
                           </div>
@@ -416,18 +446,8 @@ export function Admin() {
                             <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={2} />
                           </div>
                           <div className="space-y-1">
-                            <Label>Eligible cohort</Label>
-                            <Select value={editCohort} onValueChange={setEditCohort}>
-                              <SelectTrigger className="w-56">
-                                <SelectValue placeholder="All members" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="">All members</SelectItem>
-                                <SelectItem value="ft_2028">FT Class of 2028</SelectItem>
-                                <SelectItem value="ft_2027">FT Class of 2027</SelectItem>
-                                <SelectItem value="evening_2027">Evening Class of 2027</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Label>Eligible cohorts</Label>
+                            <CohortCheckboxGroup value={editCohorts} onChange={setEditCohorts} />
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">

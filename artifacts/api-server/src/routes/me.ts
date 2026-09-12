@@ -12,17 +12,64 @@ function getMemberId(req: Request): string | null {
   return id || null;
 }
 
-// GET /api/members: list all members (id, name, email prefix, role flags) — no auth required.
+async function requireEcOrAdmin(req: Request, res: Response): Promise<boolean> {
+  const memberId = getMemberId(req);
+  if (!memberId) { res.status(401).json({ error: "X-Member-Id header required" }); return false; }
+  const [member] = await db
+    .select({ isAdmin: members.isAdmin, isEc: members.isEc })
+    .from(members)
+    .where(eq(members.id, memberId))
+    .limit(1);
+  if (!member?.isAdmin && !member?.isEc) {
+    res.status(403).json({ error: "EC or admin access required" }); return false;
+  }
+  return true;
+}
+
+// GET /api/members: list all members with cohort and disqualified status.
 router.get("/members", async (_req: Request, res: Response) => {
   const rows = await db
-    .select({ id: members.id, name: members.name, email: members.email, isAdmin: members.isAdmin, isEc: members.isEc })
+    .select({
+      id: members.id,
+      name: members.name,
+      email: members.email,
+      isAdmin: members.isAdmin,
+      isEc: members.isEc,
+      cohort: members.cohort,
+      disqualified: members.disqualified,
+    })
     .from(members)
     .orderBy(members.name);
   res.json(rows);
 });
 
-// GET /api/me: resolve X-Member-Id header to member identity + admin status.
-// Returns { memberId, isAdmin } or 401 if header is missing.
+// PATCH /api/members/:id: update disqualified flag (EC/admin only).
+router.patch("/members/:id", async (req: Request, res: Response) => {
+  if (!(await requireEcOrAdmin(req, res))) return;
+  const id = req.params.id as string;
+  const { disqualified } = req.body as { disqualified?: boolean };
+  if (typeof disqualified !== "boolean") {
+    res.status(400).json({ error: "disqualified (boolean) is required" });
+    return;
+  }
+  const [updated] = await db
+    .update(members)
+    .set({ disqualified })
+    .where(eq(members.id, id))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
+  res.json({
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    isAdmin: updated.isAdmin,
+    isEc: updated.isEc,
+    cohort: updated.cohort ?? null,
+    disqualified: updated.disqualified,
+  });
+});
+
+// GET /api/me: resolve X-Member-Id header to member identity + role flags.
 router.get("/me", async (req: Request, res: Response) => {
   const memberId = getMemberId(req);
   if (!memberId) {

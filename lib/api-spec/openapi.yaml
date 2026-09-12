@@ -12,11 +12,57 @@ tags:
     description: Health operations
   - name: elections
     description: Voting booth operations
+  - name: members
+    description: Member management
   - name: storage
     description: Object storage upload and serving endpoints.
   - name: documents
     description: Ballot document management.
 paths:
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List all members
+      responses:
+        "200":
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemberEntry"
+
+  /members/{id}:
+    patch:
+      operationId: updateMember
+      tags: [members]
+      summary: Update a member (EC/admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberBody"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberEntry"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   /healthz:
     get:
       operationId: healthCheck
@@ -445,6 +491,32 @@ paths:
 
 components:
   schemas:
+    MemberEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        isAdmin:
+          type: boolean
+        isEc:
+          type: boolean
+        cohort:
+          type: string
+          nullable: true
+        disqualified:
+          type: boolean
+      required: [id, name, email, isAdmin, isEc, disqualified]
+
+    UpdateMemberBody:
+      type: object
+      properties:
+        disqualified:
+          type: boolean
+
     HealthStatus:
       type: object
       properties:
@@ -486,10 +558,12 @@ components:
         maxSelections:
           type: integer
           nullable: true
-        cohort:
-          type: string
+        cohorts:
+          type: array
+          items:
+            type: string
           nullable: true
-          description: If set, only members with a matching cohort may vote.
+          description: If set, only members whose cohort is in this list may vote.
         status:
           type: string
           enum: [draft, open, closed]
@@ -579,10 +653,12 @@ components:
         maxSelections:
           type: integer
           nullable: true
-        cohort:
-          type: string
+        cohorts:
+          type: array
+          items:
+            type: string
           nullable: true
-          description: If set, restricts voting to members with a matching cohort.
+          description: If set, restricts voting to members whose cohort is in this list.
         startsAt:
           type: string
           format: date-time
@@ -631,8 +707,10 @@ components:
         maxSelections:
           type: integer
           nullable: true
-        cohort:
-          type: string
+        cohorts:
+          type: array
+          items:
+            type: string
           nullable: true
         startsAt:
           type: string

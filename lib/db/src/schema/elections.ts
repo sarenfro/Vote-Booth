@@ -47,7 +47,7 @@ export const elections = pgTable("elections", {
   status: electionStatusEnum("status").notNull().default("draft"),
   startsAt: timestamp("starts_at", { withTimezone: true }),
   endsAt: timestamp("ends_at", { withTimezone: true }),
-  cohort: text("cohort"),
+  cohorts: text("cohorts").array(),
   createdBy: text("created_by").references(() => members.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp("closed_at", { withTimezone: true }),

@@ -8,6 +8,41 @@
 import * as zod from "zod";
 
 /**
+ * @summary List all members
+ */
+export const ListMembersResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  isAdmin: zod.boolean(),
+  isEc: zod.boolean(),
+  cohort: zod.string().nullish(),
+  disqualified: zod.boolean(),
+});
+export const ListMembersResponse = zod.array(ListMembersResponseItem);
+
+/**
+ * @summary Update a member (EC/admin only)
+ */
+export const UpdateMemberParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateMemberBody = zod.object({
+  disqualified: zod.boolean().optional(),
+});
+
+export const UpdateMemberResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  isAdmin: zod.boolean(),
+  isEc: zod.boolean(),
+  cohort: zod.string().nullish(),
+  disqualified: zod.boolean(),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -33,10 +68,10 @@ export const ListElectionsResponseItem = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
-  cohort: zod
-    .string()
+  cohorts: zod
+    .array(zod.string())
     .nullish()
-    .describe("If set, only members with a matching cohort may vote."),
+    .describe("If set, only members whose cohort is in this list may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -63,10 +98,12 @@ export const CreateElectionBody = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
-  cohort: zod
-    .string()
+  cohorts: zod
+    .array(zod.string())
     .nullish()
-    .describe("If set, restricts voting to members with a matching cohort."),
+    .describe(
+      "If set, restricts voting to members whose cohort is in this list.",
+    ),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
   createdBy: zod.number().nullish(),
@@ -100,10 +137,10 @@ export const GetElectionResponse = zod
     showLiveProgress: zod.boolean(),
     resultsVisible: zod.boolean().optional(),
     maxSelections: zod.number().nullish(),
-    cohort: zod
-      .string()
+    cohorts: zod
+      .array(zod.string())
       .nullish()
-      .describe("If set, only members with a matching cohort may vote."),
+      .describe("If set, only members whose cohort is in this list may vote."),
     status: zod.enum(["draft", "open", "closed"]),
     startsAt: zod.coerce.date().nullish(),
     endsAt: zod.coerce.date().nullish(),
@@ -149,7 +186,7 @@ export const UpdateElectionBody = zod.object({
   eligibleVoterCount: zod.number().nullish(),
   showLiveProgress: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
-  cohort: zod.string().nullish(),
+  cohorts: zod.array(zod.string()).nullish(),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
   options: zod.array(zod.string()).nullish(),
@@ -175,10 +212,10 @@ export const UpdateElectionResponse = zod
     showLiveProgress: zod.boolean(),
     resultsVisible: zod.boolean().optional(),
     maxSelections: zod.number().nullish(),
-    cohort: zod
-      .string()
+    cohorts: zod
+      .array(zod.string())
       .nullish()
-      .describe("If set, only members with a matching cohort may vote."),
+      .describe("If set, only members whose cohort is in this list may vote."),
     status: zod.enum(["draft", "open", "closed"]),
     startsAt: zod.coerce.date().nullish(),
     endsAt: zod.coerce.date().nullish(),
@@ -262,10 +299,10 @@ export const SetResultsVisibilityResponse = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
-  cohort: zod
-    .string()
+  cohorts: zod
+    .array(zod.string())
     .nullish()
-    .describe("If set, only members with a matching cohort may vote."),
+    .describe("If set, only members whose cohort is in this list may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -341,10 +378,10 @@ export const OpenElectionResponse = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
-  cohort: zod
-    .string()
+  cohorts: zod
+    .array(zod.string())
     .nullish()
-    .describe("If set, only members with a matching cohort may vote."),
+    .describe("If set, only members whose cohort is in this list may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),
@@ -375,10 +412,10 @@ export const CloseElectionResponse = zod.object({
   showLiveProgress: zod.boolean(),
   resultsVisible: zod.boolean().optional(),
   maxSelections: zod.number().nullish(),
-  cohort: zod
-    .string()
+  cohorts: zod
+    .array(zod.string())
     .nullish()
-    .describe("If set, only members with a matching cohort may vote."),
+    .describe("If set, only members whose cohort is in this list may vote."),
   status: zod.enum(["draft", "open", "closed"]),
   startsAt: zod.coerce.date().nullish(),
   endsAt: zod.coerce.date().nullish(),

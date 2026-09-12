@@ -9,6 +9,7 @@ export const members = pgTable("members", {
   isAdmin: boolean("is_admin").notNull().default(false),
   isEc: boolean("is_ec").notNull().default(false),
   cohort: text("cohort"),
+  disqualified: boolean("disqualified").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
