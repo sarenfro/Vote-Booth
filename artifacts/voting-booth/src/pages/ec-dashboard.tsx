@@ -20,8 +20,19 @@ import {
   useListMembers,
   useUpdateMember,
   getListMembersQueryKey,
+  useListNominationPositions,
+  useCreateNominationPosition,
+  useUpdateNominationPosition,
+  useDeleteNominationPosition,
+  useSyncNomineesToBallot,
+  useListNominations,
+  useUpdateNomination,
+  getListNominationPositionsQueryKey,
+  getListNominationsQueryKey,
   type ElectionVoteType,
   type MemberEntry,
+  type NominationPosition,
+  type NominationEntry,
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -450,6 +461,404 @@ function MemberDirectorySection() {
   );
 }
 
+const COHORT_LABEL: Record<string, string> = {
+  ft_2028: "FT Class of 2028",
+  ft_2027: "FT Class of 2027",
+  evening_2027: "Evening Class of 2027",
+};
+
+function NominationsSection() {
+  const queryClient = useQueryClient();
+  const { data: positions, isLoading: positionsLoading } = useListNominationPositions();
+  const { data: elections } = useListElections();
+  const createPos = useCreateNominationPosition();
+  const updatePos = useUpdateNominationPosition();
+  const deletePos = useDeleteNominationPosition();
+  const syncBallot = useSyncNomineesToBallot();
+  const updateNom = useUpdateNomination();
+
+  const [showForm, setShowForm] = useState(false);
+  const [formTitle, setFormTitle] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formCohorts, setFormCohorts] = useState<string[]>([]);
+  const [formClosesAt, setFormClosesAt] = useState("");
+  const [formLinkedElection, setFormLinkedElection] = useState<string>("");
+  const [formError, setFormError] = useState("");
+
+  const [editPosId, setEditPosId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCohorts, setEditCohorts] = useState<string[]>([]);
+  const [editClosesAt, setEditClosesAt] = useState("");
+  const [editLinkedElection, setEditLinkedElection] = useState<string>("");
+  const [editStatus, setEditStatus] = useState<"draft" | "open" | "closed">("draft");
+
+  const [expandedPosId, setExpandedPosId] = useState<number | null>(null);
+
+  const nominationQuery = useListNominations(
+    expandedPosId ? { positionId: expandedPosId } : undefined,
+    { query: { enabled: expandedPosId !== null } }
+  );
+
+  function resetForm() {
+    setShowForm(false); setFormTitle(""); setFormDescription("");
+    setFormCohorts([]); setFormClosesAt(""); setFormLinkedElection(""); setFormError("");
+  }
+
+  function handleCreate() {
+    if (!formTitle.trim()) { setFormError("Title is required."); return; }
+    createPos.mutate(
+      {
+        data: {
+          title: formTitle.trim(),
+          description: formDescription.trim() || null,
+          cohorts: formCohorts.length > 0 ? formCohorts : null,
+          closesAt: formClosesAt || null,
+          linkedElectionId: formLinkedElection ? parseInt(formLinkedElection, 10) : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListNominationPositionsQueryKey() });
+          resetForm();
+        },
+        onError: () => setFormError("Failed to create position."),
+      }
+    );
+  }
+
+  function startEdit(pos: NominationPosition) {
+    setEditPosId(pos.id);
+    setEditTitle(pos.title);
+    setEditDescription(pos.description ?? "");
+    setEditCohorts(pos.cohorts ?? []);
+    setEditClosesAt(pos.closesAt ? new Date(pos.closesAt).toISOString().slice(0, 16) : "");
+    setEditLinkedElection(pos.linkedElectionId ? String(pos.linkedElectionId) : "");
+    setEditStatus(pos.status as "draft" | "open" | "closed");
+  }
+
+  function handleUpdate(id: number) {
+    updatePos.mutate(
+      {
+        id,
+        data: {
+          title: editTitle.trim(),
+          description: editDescription.trim() || null,
+          cohorts: editCohorts.length > 0 ? editCohorts : null,
+          status: editStatus,
+          closesAt: editClosesAt || null,
+          linkedElectionId: editLinkedElection ? parseInt(editLinkedElection, 10) : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListNominationPositionsQueryKey() });
+          setEditPosId(null);
+        },
+      }
+    );
+  }
+
+  function handleDelete(id: number) {
+    deletePos.mutate(
+      { id },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNominationPositionsQueryKey() }) }
+    );
+  }
+
+  function handleSync(id: number) {
+    syncBallot.mutate(
+      { id },
+      {
+        onSuccess: (data) => {
+          queryClient.invalidateQueries({ queryKey: getListNominationPositionsQueryKey() });
+          alert(`Synced ${data.added} new nominee(s) to the linked ballot.`);
+        },
+        onError: () => alert("Sync failed. Make sure a ballot is linked."),
+      }
+    );
+  }
+
+  function handleNomStatus(nomId: number, status: "accepted" | "declined" | "pending") {
+    updateNom.mutate(
+      { id: nomId, data: { status } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNominationsQueryKey({ positionId: expandedPosId ?? undefined }) }) }
+    );
+  }
+
+  const openElections = (elections ?? []).filter(e => e.status !== "closed");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Create and manage nomination positions. Open positions appear on the Nominations tab for eligible members.
+        </p>
+        <Button size="sm" onClick={() => setShowForm(v => !v)}>
+          {showForm ? "Cancel" : "New Position"}
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="shadow-sm">
+          <div className="h-1 bg-accent w-full rounded-t-lg" />
+          <CardHeader><CardTitle className="text-base">Create Nomination Position</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="e.g. President" />
+            </div>
+            <div className="space-y-1">
+              <Label>Description (optional)</Label>
+              <Textarea value={formDescription} onChange={e => setFormDescription(e.target.value)} rows={2} placeholder="Describe the role…" />
+            </div>
+            <div className="space-y-1">
+              <Label>Eligible cohorts (optional)</Label>
+              <CohortCheckboxGroup value={formCohorts} onChange={setFormCohorts} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Nominations close (optional)</Label>
+                <Input type="datetime-local" value={formClosesAt} onChange={e => setFormClosesAt(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Linked ballot (optional)</Label>
+                <Select value={formLinkedElection} onValueChange={setFormLinkedElection}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {openElections.map(e => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
+          </CardContent>
+          <CardFooter className="border-t border-border/50 pt-4 gap-3">
+            <Button onClick={handleCreate} disabled={createPos.isPending} className="font-semibold">
+              {createPos.isPending ? "Creating…" : "Create as Draft"}
+            </Button>
+            <Button variant="ghost" onClick={resetForm}>Cancel</Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {positionsLoading && <p className="text-sm text-muted-foreground">Loading positions…</p>}
+
+      {!positionsLoading && (!positions || positions.length === 0) && (
+        <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
+          No nomination positions yet. Create one above.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {(positions ?? []).map(pos => {
+          const isEditing = editPosId === pos.id;
+          const isExpanded = expandedPosId === pos.id;
+          const isOpen = pos.status === "open" && (!pos.closesAt || new Date() < new Date(pos.closesAt));
+
+          return (
+            <Card key={pos.id} className="shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-base">{pos.title}</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {pos.cohorts?.length
+                        ? pos.cohorts.map(c => COHORT_LABEL[c] ?? c).join(", ")
+                        : "All cohorts"}
+                      {pos.closesAt ? ` · closes ${format(new Date(pos.closesAt), "MMM d, h:mm a")}` : ""}
+                      {pos.linkedElectionId ? ` · linked to ballot #${pos.linkedElectionId}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant={isOpen ? undefined : "outline"} className={isOpen ? "bg-primary/10 text-primary border-primary/20" : ""}>
+                    {pos.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              {isEditing && (
+                <CardContent className="pt-0 pb-3 space-y-3 border-t border-border/50">
+                  <div className="space-y-1 pt-3">
+                    <Label>Title</Label>
+                    <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Description</Label>
+                    <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={2} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Status</Label>
+                    <Select value={editStatus} onValueChange={v => setEditStatus(v as "draft" | "open" | "closed")}>
+                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Eligible cohorts</Label>
+                    <CohortCheckboxGroup value={editCohorts} onChange={setEditCohorts} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label>Closes at</Label>
+                      <Input type="datetime-local" value={editClosesAt} onChange={e => setEditClosesAt(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Linked ballot</Label>
+                      <Select value={editLinkedElection} onValueChange={setEditLinkedElection}>
+                        <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {(elections ?? []).map(e => (
+                            <SelectItem key={e.id} value={String(e.id)}>{e.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleUpdate(pos.id)} disabled={updatePos.isPending}>
+                      {updatePos.isPending ? "Saving…" : "Save"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditPosId(null)}>Cancel</Button>
+                  </div>
+                </CardContent>
+              )}
+
+              {!isEditing && isExpanded && (
+                <CardContent className="pt-0 pb-3 border-t border-border/50">
+                  <NominationList
+                    nominations={nominationQuery.data ?? []}
+                    isLoading={nominationQuery.isLoading}
+                    onStatusChange={handleNomStatus}
+                    pendingId={updateNom.variables?.id ?? null}
+                  />
+                  {pos.linkedElectionId && (
+                    <div className="mt-3 pt-3 border-t border-border/40">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSync(pos.id)}
+                        disabled={syncBallot.isPending}
+                      >
+                        {syncBallot.isPending ? "Syncing…" : "Sync accepted nominees → ballot"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Adds accepted nominees as options to ballot #{pos.linkedElectionId}.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              )}
+
+              <CardFooter className="pt-2 pb-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setExpandedPosId(isExpanded ? null : pos.id);
+                    if (isEditing) setEditPosId(null);
+                  }}
+                >
+                  {isExpanded ? "Hide nominations" : "View nominations"}
+                </Button>
+                {!isEditing && (
+                  <Button variant="outline" size="sm" onClick={() => startEdit(pos)}>Edit</Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto text-muted-foreground hover:text-destructive"
+                  onClick={() => handleDelete(pos.id)}
+                  disabled={deletePos.isPending}
+                >
+                  Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function NominationList({
+  nominations: noms,
+  isLoading,
+  onStatusChange,
+  pendingId,
+}: {
+  nominations: NominationEntry[];
+  isLoading: boolean;
+  onStatusChange: (id: number, status: "accepted" | "declined" | "pending") => void;
+  pendingId: number | null;
+}) {
+  if (isLoading) return <p className="text-xs text-muted-foreground pt-3">Loading…</p>;
+  if (noms.length === 0) {
+    return <p className="text-xs text-muted-foreground pt-3">No nominations submitted yet.</p>;
+  }
+  return (
+    <div className="pt-3 space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+        Nominations ({noms.length})
+      </p>
+      <div className="border border-border/60 rounded-md divide-y divide-border/40">
+        {noms.map(nom => (
+          <div key={nom.id} className="px-3 py-3 space-y-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  {nom.nomineeName ?? nom.nomineeId}
+                  {nom.nomineeEmail ? <span className="text-muted-foreground font-normal"> — {nom.nomineeEmail}</span> : null}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Nominated by: {nom.nominatorName ?? nom.nominatorId}
+                  {nom.revealNominator ? " (ok to reveal)" : " (anonymous to nominee)"}
+                </p>
+              </div>
+              <NomStatusBadge status={nom.status} />
+            </div>
+            <p className="text-xs text-foreground/80 italic leading-relaxed">"{nom.reason}"</p>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                variant={nom.status === "accepted" ? "default" : "outline"}
+                disabled={pendingId === nom.id}
+                onClick={() => onStatusChange(nom.id, nom.status === "accepted" ? "pending" : "accepted")}
+                className="h-7 text-xs"
+              >
+                {nom.status === "accepted" ? "Accepted ✓" : "Accept"}
+              </Button>
+              <Button
+                size="sm"
+                variant={nom.status === "declined" ? "destructive" : "outline"}
+                disabled={pendingId === nom.id}
+                onClick={() => onStatusChange(nom.id, nom.status === "declined" ? "pending" : "declined")}
+                className="h-7 text-xs"
+              >
+                {nom.status === "declined" ? "Declined ✗" : "Decline"}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NomStatusBadge({ status }: { status: string }) {
+  if (status === "accepted") return <Badge className="bg-green-100 text-green-800 border-green-200 shrink-0">Accepted</Badge>;
+  if (status === "declined") return <Badge variant="destructive" className="shrink-0">Declined</Badge>;
+  return <Badge variant="outline" className="shrink-0">Pending</Badge>;
+}
+
 export function EcDashboard() {
   const queryClient = useQueryClient();
   const { data: elections, isLoading } = useListElections();
@@ -478,7 +887,7 @@ export function EcDashboard() {
   const [editCohorts, setEditCohorts] = useState<string[]>([]);
   const [editError, setEditError] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"elections" | "members">("elections");
+  const [activeTab, setActiveTab] = useState<"elections" | "members" | "nominations">("elections");
 
   function resetForm() {
     setTitle(""); setDescription(""); setVoteType("yes_no");
@@ -592,6 +1001,12 @@ export function EcDashboard() {
           Elections & Initiatives
         </button>
         <button
+          onClick={() => setActiveTab("nominations")}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === "nominations" ? "text-foreground border-b-2 border-primary -mb-px" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Nominations
+        </button>
+        <button
           onClick={() => setActiveTab("members")}
           className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === "members" ? "text-foreground border-b-2 border-primary -mb-px" : "text-muted-foreground hover:text-foreground"}`}
         >
@@ -600,6 +1015,8 @@ export function EcDashboard() {
       </div>
 
       {activeTab === "members" && <MemberDirectorySection />}
+
+      {activeTab === "nominations" && <NominationsSection />}
 
       {activeTab === "elections" && (
         <>

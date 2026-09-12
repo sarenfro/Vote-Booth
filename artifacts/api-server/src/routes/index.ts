@@ -4,6 +4,7 @@ import electionsRouter from "./elections";
 import meRouter from "./me";
 import storageRouter from "./storage";
 import documentsRouter from "./documents";
+import nominationsRouter from "./nominations";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(meRouter);
 router.use(electionsRouter);
 router.use(storageRouter);
 router.use(documentsRouter);
+router.use(nominationsRouter);
 
 export default router;

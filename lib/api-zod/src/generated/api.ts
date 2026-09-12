@@ -486,3 +486,149 @@ export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem);
 export const DeleteDocumentParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List nomination positions (open ones for eligible members; all for EC/admin)
+ */
+export const ListNominationPositionsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  cohorts: zod
+    .array(zod.string())
+    .nullish()
+    .describe(
+      "If set, only members in these cohorts may nominate and be nominated.",
+    ),
+  status: zod.enum(["draft", "open", "closed"]),
+  closesAt: zod.coerce.date().nullish(),
+  linkedElectionId: zod.number().nullish(),
+  createdBy: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListNominationPositionsResponse = zod.array(
+  ListNominationPositionsResponseItem,
+);
+
+/**
+ * @summary Create a nomination position (EC/admin only)
+ */
+export const CreateNominationPositionBody = zod.object({
+  title: zod.string(),
+  description: zod.string().nullish(),
+  cohorts: zod.array(zod.string()).nullish(),
+  closesAt: zod.coerce.date().nullish(),
+  linkedElectionId: zod.number().nullish(),
+});
+
+/**
+ * @summary Update a nomination position (EC/admin only)
+ */
+export const UpdateNominationPositionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateNominationPositionBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  cohorts: zod.array(zod.string()).nullish(),
+  status: zod.enum(["draft", "open", "closed"]).optional(),
+  closesAt: zod.coerce.date().nullish(),
+  linkedElectionId: zod.number().nullish(),
+});
+
+export const UpdateNominationPositionResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  cohorts: zod
+    .array(zod.string())
+    .nullish()
+    .describe(
+      "If set, only members in these cohorts may nominate and be nominated.",
+    ),
+  status: zod.enum(["draft", "open", "closed"]),
+  closesAt: zod.coerce.date().nullish(),
+  linkedElectionId: zod.number().nullish(),
+  createdBy: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a nomination position (EC/admin only, draft only)
+ */
+export const DeleteNominationPositionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Push accepted nominees to linked election as options (EC/admin only)
+ */
+export const SyncNomineesToBallotParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SyncNomineesToBallotResponse = zod.object({
+  added: zod.number(),
+});
+
+/**
+ * @summary List all nominations (EC/admin only)
+ */
+export const ListNominationsQueryParams = zod.object({
+  positionId: zod.coerce.number().optional(),
+});
+
+export const ListNominationsResponseItem = zod.object({
+  id: zod.number(),
+  positionId: zod.number(),
+  positionTitle: zod.string().nullish(),
+  nominatorId: zod.string(),
+  nominatorName: zod.string().nullish(),
+  nominatorEmail: zod.string().nullish(),
+  nomineeId: zod.string(),
+  nomineeName: zod.string().nullish(),
+  nomineeEmail: zod.string().nullish(),
+  reason: zod.string(),
+  revealNominator: zod.boolean(),
+  status: zod.enum(["pending", "accepted", "declined"]),
+  createdAt: zod.coerce.date(),
+});
+export const ListNominationsResponse = zod.array(ListNominationsResponseItem);
+
+/**
+ * @summary Submit a nomination
+ */
+export const SubmitNominationBody = zod.object({
+  positionId: zod.number(),
+  nomineeId: zod.string(),
+  reason: zod.string(),
+  revealNominator: zod.boolean(),
+});
+
+/**
+ * @summary Update nomination status (EC/admin only — accept or decline)
+ */
+export const UpdateNominationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateNominationBody = zod.object({
+  status: zod.enum(["pending", "accepted", "declined"]).optional(),
+});
+
+export const UpdateNominationResponse = zod.object({
+  id: zod.number(),
+  positionId: zod.number(),
+  positionTitle: zod.string().nullish(),
+  nominatorId: zod.string(),
+  nominatorName: zod.string().nullish(),
+  nominatorEmail: zod.string().nullish(),
+  nomineeId: zod.string(),
+  nomineeName: zod.string().nullish(),
+  nomineeEmail: zod.string().nullish(),
+  reason: zod.string(),
+  revealNominator: zod.boolean(),
+  status: zod.enum(["pending", "accepted", "declined"]),
+  createdAt: zod.coerce.date(),
+});

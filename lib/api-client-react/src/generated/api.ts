@@ -21,18 +21,26 @@ import type {
   CastVoteBody,
   CreateDocumentBody,
   CreateElectionBody,
+  CreateNominationPositionBody,
   Election,
   ElectionWithOptions,
   HasVotedResponse,
   HealthStatus,
+  ListNominationsParams,
   MemberEntry,
+  NominationEntry,
+  NominationPosition,
   NonVoterEntry,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
   SetResultsVisibilityBody,
+  SubmitNominationBody,
+  SyncNomineesToBallot200,
   TallyResult,
   UpdateElectionBody,
   UpdateMemberBody,
+  UpdateNominationBody,
+  UpdateNominationPositionBody,
   VoterLogEntry,
 } from "./api.schemas";
 
@@ -1830,4 +1838,690 @@ export const useDeleteDocument = <
   TContext
 > => {
   return useMutation(getDeleteDocumentMutationOptions(options));
+};
+
+/**
+ * @summary List nomination positions (open ones for eligible members; all for EC/admin)
+ */
+export const getListNominationPositionsUrl = () => {
+  return `/api/nomination-positions`;
+};
+
+export const listNominationPositions = async (
+  options?: RequestInit,
+): Promise<NominationPosition[]> => {
+  return customFetch<NominationPosition[]>(getListNominationPositionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListNominationPositionsQueryKey = () => {
+  return [`/api/nomination-positions`] as const;
+};
+
+export const getListNominationPositionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNominationPositions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNominationPositions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListNominationPositionsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listNominationPositions>>
+  > = ({ signal }) => listNominationPositions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNominationPositions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListNominationPositionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNominationPositions>>
+>;
+export type ListNominationPositionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List nomination positions (open ones for eligible members; all for EC/admin)
+ */
+
+export function useListNominationPositions<
+  TData = Awaited<ReturnType<typeof listNominationPositions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNominationPositions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListNominationPositionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a nomination position (EC/admin only)
+ */
+export const getCreateNominationPositionUrl = () => {
+  return `/api/nomination-positions`;
+};
+
+export const createNominationPosition = async (
+  createNominationPositionBody: CreateNominationPositionBody,
+  options?: RequestInit,
+): Promise<NominationPosition> => {
+  return customFetch<NominationPosition>(getCreateNominationPositionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createNominationPositionBody),
+  });
+};
+
+export const getCreateNominationPositionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createNominationPosition>>,
+    TError,
+    { data: BodyType<CreateNominationPositionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createNominationPosition>>,
+  TError,
+  { data: BodyType<CreateNominationPositionBody> },
+  TContext
+> => {
+  const mutationKey = ["createNominationPosition"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createNominationPosition>>,
+    { data: BodyType<CreateNominationPositionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createNominationPosition(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateNominationPositionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createNominationPosition>>
+>;
+export type CreateNominationPositionMutationBody =
+  BodyType<CreateNominationPositionBody>;
+export type CreateNominationPositionMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a nomination position (EC/admin only)
+ */
+export const useCreateNominationPosition = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createNominationPosition>>,
+    TError,
+    { data: BodyType<CreateNominationPositionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createNominationPosition>>,
+  TError,
+  { data: BodyType<CreateNominationPositionBody> },
+  TContext
+> => {
+  return useMutation(getCreateNominationPositionMutationOptions(options));
+};
+
+/**
+ * @summary Update a nomination position (EC/admin only)
+ */
+export const getUpdateNominationPositionUrl = (id: number) => {
+  return `/api/nomination-positions/${id}`;
+};
+
+export const updateNominationPosition = async (
+  id: number,
+  updateNominationPositionBody: UpdateNominationPositionBody,
+  options?: RequestInit,
+): Promise<NominationPosition> => {
+  return customFetch<NominationPosition>(getUpdateNominationPositionUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateNominationPositionBody),
+  });
+};
+
+export const getUpdateNominationPositionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNominationPosition>>,
+    TError,
+    { id: number; data: BodyType<UpdateNominationPositionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateNominationPosition>>,
+  TError,
+  { id: number; data: BodyType<UpdateNominationPositionBody> },
+  TContext
+> => {
+  const mutationKey = ["updateNominationPosition"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateNominationPosition>>,
+    { id: number; data: BodyType<UpdateNominationPositionBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateNominationPosition(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateNominationPositionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateNominationPosition>>
+>;
+export type UpdateNominationPositionMutationBody =
+  BodyType<UpdateNominationPositionBody>;
+export type UpdateNominationPositionMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a nomination position (EC/admin only)
+ */
+export const useUpdateNominationPosition = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNominationPosition>>,
+    TError,
+    { id: number; data: BodyType<UpdateNominationPositionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateNominationPosition>>,
+  TError,
+  { id: number; data: BodyType<UpdateNominationPositionBody> },
+  TContext
+> => {
+  return useMutation(getUpdateNominationPositionMutationOptions(options));
+};
+
+/**
+ * @summary Delete a nomination position (EC/admin only, draft only)
+ */
+export const getDeleteNominationPositionUrl = (id: number) => {
+  return `/api/nomination-positions/${id}`;
+};
+
+export const deleteNominationPosition = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteNominationPositionUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteNominationPositionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteNominationPosition>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteNominationPosition>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteNominationPosition"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteNominationPosition>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteNominationPosition(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteNominationPositionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteNominationPosition>>
+>;
+
+export type DeleteNominationPositionMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a nomination position (EC/admin only, draft only)
+ */
+export const useDeleteNominationPosition = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteNominationPosition>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteNominationPosition>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteNominationPositionMutationOptions(options));
+};
+
+/**
+ * @summary Push accepted nominees to linked election as options (EC/admin only)
+ */
+export const getSyncNomineesToBallotUrl = (id: number) => {
+  return `/api/nomination-positions/${id}/sync-to-ballot`;
+};
+
+export const syncNomineesToBallot = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SyncNomineesToBallot200> => {
+  return customFetch<SyncNomineesToBallot200>(getSyncNomineesToBallotUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncNomineesToBallotMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncNomineesToBallot>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncNomineesToBallot>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["syncNomineesToBallot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncNomineesToBallot>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return syncNomineesToBallot(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncNomineesToBallotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncNomineesToBallot>>
+>;
+
+export type SyncNomineesToBallotMutationError = ErrorType<void>;
+
+/**
+ * @summary Push accepted nominees to linked election as options (EC/admin only)
+ */
+export const useSyncNomineesToBallot = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncNomineesToBallot>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncNomineesToBallot>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getSyncNomineesToBallotMutationOptions(options));
+};
+
+/**
+ * @summary List all nominations (EC/admin only)
+ */
+export const getListNominationsUrl = (params?: ListNominationsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/nominations?${stringifiedParams}`
+    : `/api/nominations`;
+};
+
+export const listNominations = async (
+  params?: ListNominationsParams,
+  options?: RequestInit,
+): Promise<NominationEntry[]> => {
+  return customFetch<NominationEntry[]>(getListNominationsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListNominationsQueryKey = (params?: ListNominationsParams) => {
+  return [`/api/nominations`, ...(params ? [params] : [])] as const;
+};
+
+export const getListNominationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNominations>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListNominationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listNominations>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListNominationsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listNominations>>> = ({
+    signal,
+  }) => listNominations(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNominations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListNominationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNominations>>
+>;
+export type ListNominationsQueryError = ErrorType<void>;
+
+/**
+ * @summary List all nominations (EC/admin only)
+ */
+
+export function useListNominations<
+  TData = Awaited<ReturnType<typeof listNominations>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListNominationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listNominations>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListNominationsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Submit a nomination
+ */
+export const getSubmitNominationUrl = () => {
+  return `/api/nominations`;
+};
+
+export const submitNomination = async (
+  submitNominationBody: SubmitNominationBody,
+  options?: RequestInit,
+): Promise<NominationEntry> => {
+  return customFetch<NominationEntry>(getSubmitNominationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitNominationBody),
+  });
+};
+
+export const getSubmitNominationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitNomination>>,
+    TError,
+    { data: BodyType<SubmitNominationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitNomination>>,
+  TError,
+  { data: BodyType<SubmitNominationBody> },
+  TContext
+> => {
+  const mutationKey = ["submitNomination"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitNomination>>,
+    { data: BodyType<SubmitNominationBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitNomination(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitNominationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitNomination>>
+>;
+export type SubmitNominationMutationBody = BodyType<SubmitNominationBody>;
+export type SubmitNominationMutationError = ErrorType<void>;
+
+/**
+ * @summary Submit a nomination
+ */
+export const useSubmitNomination = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitNomination>>,
+    TError,
+    { data: BodyType<SubmitNominationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitNomination>>,
+  TError,
+  { data: BodyType<SubmitNominationBody> },
+  TContext
+> => {
+  return useMutation(getSubmitNominationMutationOptions(options));
+};
+
+/**
+ * @summary Update nomination status (EC/admin only — accept or decline)
+ */
+export const getUpdateNominationUrl = (id: number) => {
+  return `/api/nominations/${id}`;
+};
+
+export const updateNomination = async (
+  id: number,
+  updateNominationBody: UpdateNominationBody,
+  options?: RequestInit,
+): Promise<NominationEntry> => {
+  return customFetch<NominationEntry>(getUpdateNominationUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateNominationBody),
+  });
+};
+
+export const getUpdateNominationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNomination>>,
+    TError,
+    { id: number; data: BodyType<UpdateNominationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateNomination>>,
+  TError,
+  { id: number; data: BodyType<UpdateNominationBody> },
+  TContext
+> => {
+  const mutationKey = ["updateNomination"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateNomination>>,
+    { id: number; data: BodyType<UpdateNominationBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateNomination(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateNominationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateNomination>>
+>;
+export type UpdateNominationMutationBody = BodyType<UpdateNominationBody>;
+export type UpdateNominationMutationError = ErrorType<void>;
+
+/**
+ * @summary Update nomination status (EC/admin only — accept or decline)
+ */
+export const useUpdateNomination = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNomination>>,
+    TError,
+    { id: number; data: BodyType<UpdateNominationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateNomination>>,
+  TError,
+  { id: number; data: BodyType<UpdateNominationBody> },
+  TContext
+> => {
+  return useMutation(getUpdateNominationMutationOptions(options));
 };

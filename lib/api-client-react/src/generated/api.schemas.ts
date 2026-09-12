@@ -229,6 +229,107 @@ export interface BallotDocument {
   createdAt: string;
 }
 
+export type NominationPositionStatus =
+  (typeof NominationPositionStatus)[keyof typeof NominationPositionStatus];
+
+export const NominationPositionStatus = {
+  draft: "draft",
+  open: "open",
+  closed: "closed",
+} as const;
+
+export interface NominationPosition {
+  id: number;
+  title: string;
+  description?: string | null;
+  /** If set, only members in these cohorts may nominate and be nominated. */
+  cohorts?: string[] | null;
+  status: NominationPositionStatus;
+  closesAt?: string | null;
+  linkedElectionId?: number | null;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export interface CreateNominationPositionBody {
+  title: string;
+  description?: string | null;
+  cohorts?: string[] | null;
+  closesAt?: string | null;
+  linkedElectionId?: number | null;
+}
+
+export type UpdateNominationPositionBodyStatus =
+  (typeof UpdateNominationPositionBodyStatus)[keyof typeof UpdateNominationPositionBodyStatus];
+
+export const UpdateNominationPositionBodyStatus = {
+  draft: "draft",
+  open: "open",
+  closed: "closed",
+} as const;
+
+export interface UpdateNominationPositionBody {
+  title?: string;
+  description?: string | null;
+  cohorts?: string[] | null;
+  status?: UpdateNominationPositionBodyStatus;
+  closesAt?: string | null;
+  linkedElectionId?: number | null;
+}
+
+export type NominationEntryStatus =
+  (typeof NominationEntryStatus)[keyof typeof NominationEntryStatus];
+
+export const NominationEntryStatus = {
+  pending: "pending",
+  accepted: "accepted",
+  declined: "declined",
+} as const;
+
+export interface NominationEntry {
+  id: number;
+  positionId: number;
+  positionTitle?: string | null;
+  nominatorId: string;
+  nominatorName?: string | null;
+  nominatorEmail?: string | null;
+  nomineeId: string;
+  nomineeName?: string | null;
+  nomineeEmail?: string | null;
+  reason: string;
+  revealNominator: boolean;
+  status: NominationEntryStatus;
+  createdAt: string;
+}
+
+export interface SubmitNominationBody {
+  positionId: number;
+  nomineeId: string;
+  reason: string;
+  revealNominator: boolean;
+}
+
+export type UpdateNominationBodyStatus =
+  (typeof UpdateNominationBodyStatus)[keyof typeof UpdateNominationBodyStatus];
+
+export const UpdateNominationBodyStatus = {
+  pending: "pending",
+  accepted: "accepted",
+  declined: "declined",
+} as const;
+
+export interface UpdateNominationBody {
+  status?: UpdateNominationBodyStatus;
+}
+
 export type SetResultsVisibilityBody = {
   visible: boolean;
+};
+
+export type SyncNomineesToBallot200 = {
+  added: number;
+};
+
+export type ListNominationsParams = {
+  positionId?: number;
 };

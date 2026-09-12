@@ -26,8 +26,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [onAdmin] = useRoute("/admin");
   const [onEc] = useRoute("/ec");
   const [onResults] = useRoute("/results");
+  const [onNominations] = useRoute("/nominations");
 
-  const activeLabel = onAdmin ? "Admin Panel" : onEc ? "EC Dashboard" : onResults ? "Results" : "Voting Booth";
+  const activeLabel = onAdmin
+    ? "Admin Panel"
+    : onEc
+    ? "EC Dashboard"
+    : onResults
+    ? "Results"
+    : onNominations
+    ? "Nominations"
+    : "Voting Booth";
+
+  const isLoggedIn = !!me;
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
@@ -63,6 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="max-w-5xl mx-auto px-6 flex items-center gap-1 pb-0" aria-label="Portal navigation">
           <NavTab label="Voting Booth" href="/" active={activeLabel === "Voting Booth"} enabled />
+          {isLoggedIn && <NavTab label="Nominations" href="/nominations" active={activeLabel === "Nominations"} enabled />}
           {(isEc || isAdmin) && <NavTab label="EC Dashboard" href="/ec" active={activeLabel === "EC Dashboard"} enabled />}
           <NavTab label="Results" href="/results" active={activeLabel === "Results"} enabled />
         </nav>

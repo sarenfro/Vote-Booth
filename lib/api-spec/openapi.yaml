@@ -18,6 +18,8 @@ tags:
     description: Object storage upload and serving endpoints.
   - name: documents
     description: Ballot document management.
+  - name: nominations
+    description: Nomination positions and submission management.
 paths:
   /members:
     get:
@@ -489,6 +491,187 @@ paths:
         '404':
           description: Document not found.
 
+  /nomination-positions:
+    get:
+      operationId: listNominationPositions
+      tags: [nominations]
+      summary: List nomination positions (open ones for eligible members; all for EC/admin)
+      responses:
+        "200":
+          description: List of nomination positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NominationPosition"
+    post:
+      operationId: createNominationPosition
+      tags: [nominations]
+      summary: Create a nomination position (EC/admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNominationPositionBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NominationPosition"
+        "403":
+          description: EC or admin access required
+
+  /nomination-positions/{id}:
+    patch:
+      operationId: updateNominationPosition
+      tags: [nominations]
+      summary: Update a nomination position (EC/admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNominationPositionBody"
+      responses:
+        "200":
+          description: Updated position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NominationPosition"
+        "403":
+          description: EC or admin access required
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteNominationPosition
+      tags: [nominations]
+      summary: Delete a nomination position (EC/admin only, draft only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /nomination-positions/{id}/sync-to-ballot:
+    post:
+      operationId: syncNomineesToBallot
+      tags: [nominations]
+      summary: Push accepted nominees to linked election as options (EC/admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Synced successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added:
+                    type: integer
+                required: [added]
+        "400":
+          description: No linked election
+        "403":
+          description: EC or admin access required
+        "404":
+          description: Not found
+
+  /nominations:
+    get:
+      operationId: listNominations
+      tags: [nominations]
+      summary: List all nominations (EC/admin only)
+      parameters:
+        - name: positionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of nominations with nominator and nominee details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NominationEntry"
+        "403":
+          description: EC or admin access required
+    post:
+      operationId: submitNomination
+      tags: [nominations]
+      summary: Submit a nomination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitNominationBody"
+      responses:
+        "201":
+          description: Nomination submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NominationEntry"
+        "400":
+          description: Validation error
+        "403":
+          description: Not eligible
+
+  /nominations/{id}:
+    patch:
+      operationId: updateNomination
+      tags: [nominations]
+      summary: Update nomination status (EC/admin only — accept or decline)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNominationBody"
+      responses:
+        "200":
+          description: Updated nomination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NominationEntry"
+        "403":
+          description: EC or admin access required
+        "404":
+          description: Not found
+
 components:
   schemas:
     MemberEntry:
@@ -871,3 +1054,141 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    NominationPosition:
+      type: object
+      required: [id, title, status, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        cohorts:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: If set, only members in these cohorts may nominate and be nominated.
+        status:
+          type: string
+          enum: [draft, open, closed]
+        closesAt:
+          type: string
+          format: date-time
+          nullable: true
+        linkedElectionId:
+          type: integer
+          nullable: true
+        createdBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateNominationPositionBody:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        cohorts:
+          type: array
+          items:
+            type: string
+          nullable: true
+        closesAt:
+          type: string
+          format: date-time
+          nullable: true
+        linkedElectionId:
+          type: integer
+          nullable: true
+
+    UpdateNominationPositionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        cohorts:
+          type: array
+          items:
+            type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, open, closed]
+        closesAt:
+          type: string
+          format: date-time
+          nullable: true
+        linkedElectionId:
+          type: integer
+          nullable: true
+
+    NominationEntry:
+      type: object
+      required: [id, positionId, nominatorId, nomineeId, reason, revealNominator, status, createdAt]
+      properties:
+        id:
+          type: integer
+        positionId:
+          type: integer
+        positionTitle:
+          type: string
+          nullable: true
+        nominatorId:
+          type: string
+        nominatorName:
+          type: string
+          nullable: true
+        nominatorEmail:
+          type: string
+          nullable: true
+        nomineeId:
+          type: string
+        nomineeName:
+          type: string
+          nullable: true
+        nomineeEmail:
+          type: string
+          nullable: true
+        reason:
+          type: string
+        revealNominator:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitNominationBody:
+      type: object
+      required: [positionId, nomineeId, reason, revealNominator]
+      properties:
+        positionId:
+          type: integer
+        nomineeId:
+          type: string
+        reason:
+          type: string
+        revealNominator:
+          type: boolean
+
+    UpdateNominationBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, accepted, declined]
