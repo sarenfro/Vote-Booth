@@ -1,5 +1,8 @@
 modules = ["nodejs-24", "postgresql-16"]
 
+[env]
+CI = "true"
+
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
