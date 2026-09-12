@@ -699,6 +699,9 @@ components:
       properties:
         disqualified:
           type: boolean
+        cohort:
+          type: string
+          nullable: true
 
     HealthStatus:
       type: object

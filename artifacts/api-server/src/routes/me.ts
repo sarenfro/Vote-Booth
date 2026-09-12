@@ -43,18 +43,21 @@ router.get("/members", async (_req: Request, res: Response) => {
   res.json(rows);
 });
 
-// PATCH /api/members/:id: update disqualified flag (EC/admin only).
+// PATCH /api/members/:id: update disqualified flag and/or cohort (EC/admin only).
 router.patch("/members/:id", async (req: Request, res: Response) => {
   if (!(await requireEcOrAdmin(req, res))) return;
   const id = req.params.id as string;
-  const { disqualified } = req.body as { disqualified?: boolean };
-  if (typeof disqualified !== "boolean") {
-    res.status(400).json({ error: "disqualified (boolean) is required" });
+  const { disqualified, cohort } = req.body as { disqualified?: boolean; cohort?: string | null };
+  const updates: Partial<{ disqualified: boolean; cohort: string | null }> = {};
+  if (typeof disqualified === "boolean") updates.disqualified = disqualified;
+  if (cohort !== undefined) updates.cohort = cohort ?? null;
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No valid fields to update" });
     return;
   }
   const [updated] = await db
     .update(members)
-    .set({ disqualified })
+    .set(updates)
     .where(eq(members.id, id))
     .returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }

@@ -374,6 +374,13 @@ function MemberDirectorySection() {
     );
   }
 
+  function handleSetCohort(member: MemberEntry, cohort: string | null) {
+    updateMember.mutate(
+      { id: member.id, data: { cohort } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() }) }
+    );
+  }
+
   const filtered = members
     ? filterCohort === "all"
       ? members
@@ -443,14 +450,30 @@ function MemberDirectorySection() {
                       {member.id}{member.email ? ` · ${member.email}` : ""}
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer shrink-0 text-xs text-muted-foreground select-none">
-                    <Checkbox
-                      checked={member.disqualified}
-                      onCheckedChange={() => handleToggleDisqualified(member)}
-                      disabled={updateMember.isPending}
-                    />
-                    Disqualified
-                  </label>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Select
+                      value={member.cohort ?? "none"}
+                      onValueChange={v => handleSetCohort(member, v === "none" ? null : v)}
+                    >
+                      <SelectTrigger className="h-7 text-xs w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No cohort</SelectItem>
+                        {COHORT_OPTIONS.map(o => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground select-none">
+                      <Checkbox
+                        checked={member.disqualified}
+                        onCheckedChange={() => handleToggleDisqualified(member)}
+                        disabled={updateMember.isPending}
+                      />
+                      Disqualified
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -482,7 +505,7 @@ function NominationsSection() {
   const [formDescription, setFormDescription] = useState("");
   const [formCohorts, setFormCohorts] = useState<string[]>([]);
   const [formClosesAt, setFormClosesAt] = useState("");
-  const [formLinkedElection, setFormLinkedElection] = useState<string>("");
+  const [formLinkedElection, setFormLinkedElection] = useState<string>("none");
   const [formError, setFormError] = useState("");
 
   const [editPosId, setEditPosId] = useState<number | null>(null);
@@ -490,7 +513,7 @@ function NominationsSection() {
   const [editDescription, setEditDescription] = useState("");
   const [editCohorts, setEditCohorts] = useState<string[]>([]);
   const [editClosesAt, setEditClosesAt] = useState("");
-  const [editLinkedElection, setEditLinkedElection] = useState<string>("");
+  const [editLinkedElection, setEditLinkedElection] = useState<string>("none");
   const [editStatus, setEditStatus] = useState<"draft" | "open" | "closed">("draft");
 
   const [expandedPosId, setExpandedPosId] = useState<number | null>(null);
@@ -502,7 +525,7 @@ function NominationsSection() {
 
   function resetForm() {
     setShowForm(false); setFormTitle(""); setFormDescription("");
-    setFormCohorts([]); setFormClosesAt(""); setFormLinkedElection(""); setFormError("");
+    setFormCohorts([]); setFormClosesAt(""); setFormLinkedElection("none"); setFormError("");
   }
 
   function handleCreate() {
@@ -514,7 +537,7 @@ function NominationsSection() {
           description: formDescription.trim() || null,
           cohorts: formCohorts.length > 0 ? formCohorts : null,
           closesAt: formClosesAt || null,
-          linkedElectionId: formLinkedElection ? parseInt(formLinkedElection, 10) : null,
+          linkedElectionId: formLinkedElection !== "none" ? parseInt(formLinkedElection, 10) : null,
         },
       },
       {
@@ -533,7 +556,7 @@ function NominationsSection() {
     setEditDescription(pos.description ?? "");
     setEditCohorts(pos.cohorts ?? []);
     setEditClosesAt(pos.closesAt ? new Date(pos.closesAt).toISOString().slice(0, 16) : "");
-    setEditLinkedElection(pos.linkedElectionId ? String(pos.linkedElectionId) : "");
+    setEditLinkedElection(pos.linkedElectionId ? String(pos.linkedElectionId) : "none");
     setEditStatus(pos.status as "draft" | "open" | "closed");
   }
 
@@ -547,7 +570,7 @@ function NominationsSection() {
           cohorts: editCohorts.length > 0 ? editCohorts : null,
           status: editStatus,
           closesAt: editClosesAt || null,
-          linkedElectionId: editLinkedElection ? parseInt(editLinkedElection, 10) : null,
+          linkedElectionId: editLinkedElection !== "none" ? parseInt(editLinkedElection, 10) : null,
         },
       },
       {
@@ -626,7 +649,7 @@ function NominationsSection() {
                 <Select value={formLinkedElection} onValueChange={setFormLinkedElection}>
                   <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {openElections.map(e => (
                       <SelectItem key={e.id} value={String(e.id)}>{e.title}</SelectItem>
                     ))}
@@ -714,7 +737,7 @@ function NominationsSection() {
                       <Select value={editLinkedElection} onValueChange={setEditLinkedElection}>
                         <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {(elections ?? []).map(e => (
                             <SelectItem key={e.id} value={String(e.id)}>{e.title}</SelectItem>
                           ))}

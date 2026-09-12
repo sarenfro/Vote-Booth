@@ -17,6 +17,7 @@ export interface MemberEntry {
 
 export interface UpdateMemberBody {
   disqualified?: boolean;
+  cohort?: string | null;
 }
 
 export interface HealthStatus {
