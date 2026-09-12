@@ -323,6 +323,7 @@ export function EcDashboard() {
   const [quorumCount, setQuorumCount] = useState("");
   const [eligibleCount, setEligibleCount] = useState("");
   const [maxSelections, setMaxSelections] = useState("");
+  const [cohort, setCohort] = useState<string>("");
   const [formError, setFormError] = useState("");
 
   // Inline edit state
@@ -331,12 +332,13 @@ export function EcDashboard() {
   const [editDescription, setEditDescription] = useState("");
   const [editQuorum, setEditQuorum] = useState("");
   const [editEligible, setEditEligible] = useState("");
+  const [editCohort, setEditCohort] = useState<string>("");
   const [editError, setEditError] = useState("");
 
   function resetForm() {
     setTitle(""); setDescription(""); setVoteType("yes_no");
     setOptionInputs(["", ""]); setQuorumCount(""); setEligibleCount("");
-    setMaxSelections(""); setFormError(""); setShowForm(false);
+    setMaxSelections(""); setCohort(""); setFormError(""); setShowForm(false);
   }
 
   async function handleCreate() {
@@ -358,6 +360,7 @@ export function EcDashboard() {
           eligibleVoterCount: eligibleCount ? parseInt(eligibleCount, 10) : undefined,
           maxSelections: voteType === "multi_select" && maxSelections ? parseInt(maxSelections, 10) : undefined,
           showLiveProgress: true,
+          cohort: cohort || null,
         },
       },
       {
@@ -377,12 +380,13 @@ export function EcDashboard() {
     closeElection.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListElectionsQueryKey() }) });
   }
 
-  function startEdit(election: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null }) {
+  function startEdit(election: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null; cohort?: string | null }) {
     setEditingId(election.id);
     setEditTitle(election.title);
     setEditDescription(election.description ?? "");
     setEditQuorum(election.quorumCount != null ? String(election.quorumCount) : "");
     setEditEligible(election.eligibleVoterCount != null ? String(election.eligibleVoterCount) : "");
+    setEditCohort(election.cohort ?? "");
     setEditError("");
   }
 
@@ -405,6 +409,7 @@ export function EcDashboard() {
           description: editDescription.trim() || null,
           quorumCount: editQuorum ? parseInt(editQuorum, 10) : null,
           eligibleVoterCount: editEligible ? parseInt(editEligible, 10) : null,
+          cohort: editCohort || null,
         },
       },
       {
@@ -504,6 +509,19 @@ export function EcDashboard() {
               </div>
             )}
             <Separator />
+            <div className="space-y-1">
+              <Label>Eligible cohort (optional)</Label>
+              <Select value={cohort} onValueChange={setCohort}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="All members" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All members</SelectItem>
+                  <SelectItem value="ft_2028">FT Class of 2028</SelectItem>
+                  <SelectItem value="ft_2027">FT Class of 2027</SelectItem>
+                  <SelectItem value="evening_2027">Evening Class of 2027</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Restrict voting to a specific cohort. Leave blank to allow all members.</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Quorum count (optional)</Label>
@@ -570,11 +588,13 @@ export function EcDashboard() {
                       editDescription={editDescription}
                       editQuorum={editQuorum}
                       editEligible={editEligible}
+                      editCohort={editCohort}
                       editError={editError}
                       onEditTitle={setEditTitle}
                       onEditDescription={setEditDescription}
                       onEditQuorum={setEditQuorum}
                       onEditEligible={setEditEligible}
+                      onEditCohort={setEditCohort}
                       onStartEdit={startEdit}
                       onCancelEdit={cancelEdit}
                       onSaveEdit={handleUpdate}
@@ -607,18 +627,21 @@ interface ElectionCardProps {
     quorumCount?: number | null;
     description?: string | null;
     resultsVisible?: boolean;
+    cohort?: string | null;
   };
   editingId: number | null;
   editTitle: string;
   editDescription: string;
   editQuorum: string;
   editEligible: string;
+  editCohort: string;
   editError: string;
   onEditTitle: (v: string) => void;
   onEditDescription: (v: string) => void;
   onEditQuorum: (v: string) => void;
   onEditEligible: (v: string) => void;
-  onStartEdit: (e: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null }) => void;
+  onEditCohort: (v: string) => void;
+  onStartEdit: (e: { id: number; title: string; description?: string | null; quorumCount?: number | null; eligibleVoterCount?: number | null; cohort?: string | null }) => void;
   onCancelEdit: () => void;
   onSaveEdit: (id: number) => void;
   savePending: boolean;
@@ -631,8 +654,8 @@ interface ElectionCardProps {
 }
 
 function ElectionCard({
-  election, editingId, editTitle, editDescription, editQuorum, editEligible, editError,
-  onEditTitle, onEditDescription, onEditQuorum, onEditEligible,
+  election, editingId, editTitle, editDescription, editQuorum, editEligible, editCohort, editError,
+  onEditTitle, onEditDescription, onEditQuorum, onEditEligible, onEditCohort,
   onStartEdit, onCancelEdit, onSaveEdit, savePending,
   onOpen, onClose, openPending, closePending,
   onDelete, deletePending,
@@ -660,6 +683,7 @@ function ElectionCard({
             <CardTitle className="text-base font-semibold">{election.title}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
               {VOTE_TYPE_LABELS[election.voteType] ?? election.voteType}
+              {election.cohort ? ` · ${election.cohort}` : ""}
               {election.eligibleVoterCount ? ` · ${election.eligibleVoterCount} eligible` : ""}
             </p>
             {election.description && !isEditing && (
@@ -679,6 +703,18 @@ function ElectionCard({
           <div className="space-y-1">
             <Label>Description (optional)</Label>
             <Textarea value={editDescription} onChange={e => onEditDescription(e.target.value)} rows={2} />
+          </div>
+          <div className="space-y-1">
+            <Label>Eligible cohort</Label>
+            <Select value={editCohort} onValueChange={onEditCohort}>
+              <SelectTrigger className="w-56"><SelectValue placeholder="All members" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All members</SelectItem>
+                <SelectItem value="ft_2028">FT Class of 2028</SelectItem>
+                <SelectItem value="ft_2027">FT Class of 2027</SelectItem>
+                <SelectItem value="evening_2027">Evening Class of 2027</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
