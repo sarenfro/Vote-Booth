@@ -29,6 +29,8 @@ import {
   useUpdateNomination,
   getListNominationPositionsQueryKey,
   getListNominationsQueryKey,
+  getGetVoterLogQueryKey,
+  getGetNonVotersQueryKey,
   type ElectionVoteType,
   type MemberEntry,
   type NominationPosition,
@@ -200,12 +202,12 @@ function VoterLogSection({ electionId }: { electionId: number }) {
   const [authError, setAuthError] = useState("");
 
   const { data: log, isLoading, error } = useGetVoterLog(electionId, {
-    query: { enabled: !!password, retry: false },
+    query: { queryKey: getGetVoterLogQueryKey(electionId), enabled: !!password, retry: false },
     request: { headers: password ? { "X-Voter-Log-Password": password } : undefined },
   });
 
   const { data: nonVoters, isLoading: nonVotersLoading } = useGetNonVoters(electionId, {
-    query: { enabled: !!password, retry: false },
+    query: { queryKey: getGetNonVotersQueryKey(electionId), enabled: !!password, retry: false },
     request: { headers: password ? { "X-Voter-Log-Password": password } : undefined },
   });
 
@@ -520,7 +522,7 @@ function NominationsSection() {
 
   const nominationQuery = useListNominations(
     expandedPosId ? { positionId: expandedPosId } : undefined,
-    { query: { enabled: expandedPosId !== null } }
+    { query: { queryKey: getListNominationsQueryKey(expandedPosId ? { positionId: expandedPosId } : undefined), enabled: expandedPosId !== null } }
   );
 
   function resetForm() {

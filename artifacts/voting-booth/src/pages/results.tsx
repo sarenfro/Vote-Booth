@@ -1,4 +1,4 @@
-import { useListElections, useGetElectionTally, useListDocuments } from "@workspace/api-client-react";
+import { useListElections, useGetElectionTally, useListDocuments, getGetElectionTallyQueryKey } from "@workspace/api-client-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -37,7 +37,7 @@ function thresholdFraction(election: ElectionForResults): number {
 function ElectionResult({ election }: { election: ElectionForResults }) {
   const resultsVisible = !!election.resultsVisible;
   const { data: tally } = useGetElectionTally(election.id, {
-    query: { enabled: election.status === "closed" && resultsVisible },
+    query: { queryKey: getGetElectionTallyQueryKey(election.id), enabled: election.status === "closed" && resultsVisible },
   });
   const { data: docs } = useListDocuments(election.id);
 
